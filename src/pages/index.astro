@@ -27,8 +27,8 @@ const days = [
 
 		<!-- Weekly Training Schedule -->
 		<div class="w-full max-w-2xl">
-			<div class="p-5">
-				<div class="flex justify-around">
+			<div class="p-5 w-full">
+				<div class="flex justify-between p-5">
 					<h2 class=" text-xl font-bold">Weekly Training Schedule </h2>
 				<div class="flex justify-between">
 					<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-left"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 6l-6 6l6 6" /></svg>
@@ -37,7 +37,7 @@ const days = [
 				</div>
 				</div>
 				<div class="flex flex-col items-center">
-					<div class="grid grid-cols-7 gap-4 w-4/5">
+					<div class="grid grid-cols-7 gap-10 w-4/5">
 					  {days.map((item) => (
 						<div class="flex flex-col items-center">
 						  <span class="text-sm text-gray-500 font-medium">{item.day}</span>
@@ -45,14 +45,21 @@ const days = [
 						</div>
 					  ))}
 					</div>
-					<div>
-						<h3 class=" font-bold text-lg">Monday, June 12</h3>
-						<div class=" border border-solid divide-slate-500">
-						  
-						</div>
-			
-					</div>
 				  </div>
+				  <div class="mt-5">
+					<h3 class=" font-bold text-lg">Monday, June 12</h3>
+					<div class="border border-solid divide-slate-500 p-6 rounded-lg shadow-lg">
+					  <h4 class="font-bold">A) Clean & Jerk</h4>
+					  <p class="text-[#6e6e77]">
+						For Time:<br>
+						10 Clean &Jerks @ 52%<br>
+						8 Clean &Jerks @ 60%<br>
+						6 Clean &Jerks @ 69%<br>
+						4 Clean &Jerks @ 77%<br>
+						2 Clean &Jerks @ 85%</p>
+					</div>
+		
+				</div>
 			</div>
 
 		</div>
