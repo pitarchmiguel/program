@@ -18,7 +18,7 @@ const days = [
 		<meta name="generator" content={Astro.generator} />
 		<title>Programación CrossFit</title>
 	</head>
-	<body class="w-full h-screen bg-slate-50 flex flex-col justify-center items-center">
+	<body class="w-full h-screen flex flex-col justify-center items-center">
 		
 		<!-- Header - Title --> 
 		<header class="text-slate-950 text-5xl font-bold">
@@ -27,27 +27,36 @@ const days = [
 
 		<!-- Weekly Training Schedule -->
 		<div class="w-full max-w-2xl">
-			<div class="flex justify-around items-center p-5">
-				<h2 class=" text-xl font-bold">Weekly Training Schedule </h2>
+			<div class="p-5">
+				<div class="flex justify-around">
+					<h2 class=" text-xl font-bold">Weekly Training Schedule </h2>
 				<div class="flex justify-between">
 					<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-left"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 6l-6 6l6 6" /></svg>
 					<h3 class="">Weekly of Jule 12, 2024</h3>
 					<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-right"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 6l6 6l-6 6" /></svg>
 				</div>
-			</div>
-			<div class="flex justify-center items-center">
-				<div class="grid grid-cols-7 gap-4 w-4/5">
-				  {days.map((item) => (
-					<div class="flex flex-col items-center">
-					  <span class="text-sm text-gray-500 font-medium">{item.day}</span>
-					  <span class="text-xl font-bold">{item.date}</span>
-					</div>
-				  ))}
 				</div>
-			  </div>
+				<div class="flex flex-col items-center">
+					<div class="grid grid-cols-7 gap-4 w-4/5">
+					  {days.map((item) => (
+						<div class="flex flex-col items-center">
+						  <span class="text-sm text-gray-500 font-medium">{item.day}</span>
+						  <span class="text-xl font-bold">{item.date}</span>
+						</div>
+					  ))}
+					</div>
+					<div>
+						<h3 class=" font-bold text-lg">Monday, June 12</h3>
+						<div class=" border border-solid divide-slate-500">
+						  
+						</div>
+			
+					</div>
+				  </div>
+			</div>
+
 		</div>
 
-		<!--Weekly days -->
 	</body>
 	<style>
 		body {
