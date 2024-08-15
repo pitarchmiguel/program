@@ -48,9 +48,9 @@ const days = [
 				  </div>
 				  <div class="mt-5">
 					<h3 class=" font-bold text-lg">Monday, June 12</h3>
-					<div class="border border-solid divide-slate-500 p-6 rounded-lg shadow-lg">
+					<div class="ToggleContent cursor-pointer  transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-6 rounded-lg shadow-lg">
 					  <h4 class="font-bold">A) Clean & Jerk</h4>
-					  <p class="text-[#6e6e77]">
+					  <p class="text-[#6e6e77] hidden">
 						For Time:<br>
 						10 Clean &Jerks @ 52%<br>
 						8 Clean &Jerks @ 60%<br>
@@ -59,15 +59,15 @@ const days = [
 						2 Clean &Jerks @ 85%
 					</p>
 					</div>
-					<div class="border border-solid divide-slate-500 p-6 mt-5 rounded-lg shadow-lg">
+					<div class="ToggleContent cursor-pointer  transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl active:bg-gray-200 border border-solid divide-slate-500 p-6 mt-5 rounded-lg shadow-lg"> 
 						<h4 class="font-bold">B) Front Squat</h4>
-						<p class="text-[#6e6e77]">
+						<p class="text-[#6e6e77] hidden">
 							Build To A Heavy Set of 5
 					  	</p>
 					</div>
-					<div class="border border-solid divide-slate-500 p-6 mt-5 rounded-lg shadow-lg">
+					<div class="ToggleContent cursor-pointer  transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-6 mt-5 rounded-lg shadow-lg">
 						<h4 class="font-bold">C) Front Seat</h4>
-						<p class="text-[#6e6e77]">
+						<p class="text-[#6e6e77] hidden">
 						  For Time:<br>
 						  20 Front Squats<br>
 						  20 Bar-Facing Burpees<br>
@@ -75,7 +75,7 @@ const days = [
 						  20 Bar-Facing Burpees<br>
 						  20 Thrusters<br><br>
 						  
-						  <p class="font-bold">Barbell: 52 / 38 kg</p>
+						  <span class="font-bold">Barbell: 52 / 38 kg</span>
 					  </p>
 					  </div>
 		
@@ -83,7 +83,23 @@ const days = [
 			</div>
 
 		</div>
+	<script type="module">
+		function activeContent() {
+    const toggleContents = document.querySelectorAll(".ToggleContent");
 
+    toggleContents.forEach(toggleContent => {
+        toggleContent.addEventListener("click", () => {
+            const paragraph = toggleContent.querySelector('p');
+            if (paragraph) {
+                paragraph.classList.toggle('hidden');
+            }
+        });
+    });
+}
+// Llama a la función cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', activeContent);
+
+		</script>
 	</body>
 	<style>
 		body {
