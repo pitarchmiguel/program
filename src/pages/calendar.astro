@@ -1,0 +1,35 @@
+---
+import CrossfitCalendar from '../components/CrossfitCalendar';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calendario de Entrenamientos CrossFit</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Asegúrate de que la ruta del favicon sea correcta -->
+  </head>
+  <body>
+    <main>
+      <h1 class="text-3xl font-bold text-center my-4">Calendario de Entrenamientos CrossFit</h1>
+      <CrossfitCalendar client:load />
+    </main>
+  </body>
+</html>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+  }
+  main {
+    margin: auto;
+    padding: 1rem;
+    width: 100%;
+    max-width: 1200px;
+    min-height: 100vh;
+  }
+</style>

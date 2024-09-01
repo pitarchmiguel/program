@@ -1,13 +1,12 @@
 ---
-const days = [
-  { day: 'Mon', date: 12 },
-  { day: 'Tue', date: 13 },
-  { day: 'Wed', date: 14 },
-  { day: 'Thu', date: 15 },
-  { day: 'Fri', date: 16 },
-  { day: 'Sat', date: 17 },
-  { day: 'Sun', date: 18 },
-];
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays, addWeeks, subWeeks, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+const today = new Date();
+const startDate = startOfWeek(today, { weekStartsOn: 1 });
+const endDate = addDays(startDate, 4); // Solo 5 días, de lunes a viernes
+
+const days = eachDayOfInterval({ start: startDate, end: endDate });
 ---
 
 <html lang="es">
@@ -18,84 +17,186 @@ const days = [
 		<meta name="generator" content={Astro.generator} />
 		<title>Programación CrossFit</title>
 	</head>
-	<body class="w-full h-screen flex flex-col items-center">
-		<!-- Weekly Training Schedule -->
-		<div class="w-full max-w-2xl">
-			<div class="p-5 w-full">
-				<div class="flex justify-center items-center my-7 gap-10">
-					<button id="preWeek"><svg  xmlns="http://www.w3.org/2000/svg"  width="30"  height="30"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-left"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 6l-6 6l6 6" /></svg></button>
-					<h3 class="text-xl font-bold">Weekly of Jule 12, 2024</h3>
-					<button><svg  xmlns="http://www.w3.org/2000/svg"  width="30"  height="30"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-right"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 6l6 6l-6 6" /></svg></button>
-				</div>
+	<body class="w-full min-h-screen flex flex-col items-center bg-gray-100">
+		<div class="w-full max-w-4xl bg-white shadow-lg rounded-lg my-8 p-6">
+			<div class="flex justify-between items-center mb-6">
+				<h1 class="text-3xl font-bold text-gray-800">Programación CrossFit</h1>
+				<a href="/agregar-entrenamiento" class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded-full transition duration-300" title="Agregar Entrenamiento">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					</svg>
+				</a>
+			</div>
 			
-				<div class="flex flex-col items-center">
-					<div class="grid grid-cols-7 gap-10 w-4/5">
-					  {days.map((item) => (
-						<div class="flex flex-col items-center">
-						  <span class="text-sm text-gray-500 font-medium">{item.day}</span>
-						  <span class="text-xl font-bold">{item.date}</span>
-						</div>
-					  ))}
-					</div>
-				  </div>
-				  <div class="mt-5">
-					<h3 class=" font-bold text-lg">Monday, June 12</h3>
-					<div class="ToggleContent cursor-pointer  transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-6 rounded-lg shadow-lg">
-					  <h4 class="font-bold">A) Clean & Jerk</h4>
-					  <p class="text-[#6e6e77] hidden">
-						For Time:<br>
-						10 Clean &Jerks @ 52%<br>
-						8 Clean &Jerks @ 60%<br>
-						6 Clean &Jerks @ 69%<br>
-						4 Clean &Jerks @ 77%<br>
-						2 Clean &Jerks @ 85%
-					</p>
-					</div>
-					<div class="ToggleContent cursor-pointer  transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl active:bg-gray-200 border border-solid divide-slate-500 p-6 mt-5 rounded-lg shadow-lg"> 
-						<h4 class="font-bold">B) Front Squat</h4>
-						<p class="text-[#6e6e77] hidden">
-							Build To A Heavy Set of 5
-					  	</p>
-					</div>
-					<div class="ToggleContent cursor-pointer  transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-6 mt-5 rounded-lg shadow-lg">
-						<h4 class="font-bold">C) Front Seat</h4>
-						<p class="text-[#6e6e77] hidden">
-						  For Time:<br>
-						  20 Front Squats<br>
-						  20 Bar-Facing Burpees<br>
-						  20 Push Press<br>
-						  20 Bar-Facing Burpees<br>
-						  20 Thrusters<br><br>
-						  
-						  <span class="font-bold">Barbell: 52 / 38 kg</span>
-					  </p>
-					  </div>
+			<div class="flex justify-center items-center mb-6 gap-4">
+				<button id="prevWeek" class="text-blue-500 hover:text-blue-700">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M15 18l-6-6 6-6"/>
+					</svg>
+				</button>
+				<h3 id="weekDisplay" class="text-xl font-semibold text-gray-700"></h3>
+				<button id="nextWeek" class="text-blue-500 hover:text-blue-700">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M9 18l6-6-6-6"/>
+					</svg>
+				</button>
+			</div>
 		
-				</div>
+			<div class="grid grid-cols-5 gap-4 mb-6" id="weekGrid">
+				{days.map((day) => (
+					<div class="flex flex-col items-center p-2 border rounded-lg cursor-pointer hover:bg-gray-100 transition duration-300" data-date={format(day, 'yyyy-MM-dd')}>
+						<span class="text-sm font-medium text-gray-500">{format(day, 'EEE', { locale: es })}</span>
+						<span class="text-lg font-bold text-gray-700">{format(day, 'd')}</span>
+					</div>
+				))}
 			</div>
 
+			<div id="workoutList" class="space-y-4">
+				<!-- Los entrenamientos se cargarán aquí dinámicamente -->
+			</div>
 		</div>
-	<script type="module">
-		function activeContent() {
-    const toggleContents = document.querySelectorAll(".ToggleContent");
-
-    toggleContents.forEach(toggleContent => {
-        toggleContent.addEventListener("click", () => {
-            const paragraph = toggleContent.querySelector('p');
-            if (paragraph) {
-                paragraph.classList.toggle('hidden');
-            }
-        });
-    });
-}
-// Llama a la función cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', activeContent);
-
-		</script>
 	</body>
 	<style>
 		body {
 			font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 		}
+		.selected-day {
+			background-color: #e5e7eb;
+			border-color: #3b82f6;
+		}
 	</style>
+	
+	<script>
+		import { db } from '../firebase';
+		import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+		import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, isSameDay, eachDayOfInterval, addDays } from 'date-fns';
+		import { es } from 'date-fns/locale';
+
+		let currentWeekStart;
+		let selectedDate;
+
+		function getWeekFromURL() {
+			const urlParams = new URLSearchParams(window.location.search);
+			const weekParam = urlParams.get('week');
+			return weekParam ? parseISO(weekParam) : new Date();
+		}
+
+		function updateURL(date) {
+			const formattedDate = format(date, 'yyyy-MM-dd');
+			history.pushState(null, '', `?week=${formattedDate}`);
+		}
+
+		async function loadWorkouts(start, end) {
+			const workoutsQuery = query(
+				collection(db, "workouts"),
+				where("date", ">=", format(start, 'yyyy-MM-dd')),
+				where("date", "<=", format(end, 'yyyy-MM-dd')),
+				orderBy("date")
+			);
+
+			const querySnapshot = await getDocs(workoutsQuery);
+			const workouts = [];
+
+			querySnapshot.forEach((doc) => {
+				workouts.push({ id: doc.id, ...doc.data() });
+			});
+
+			return workouts;
+		}
+
+		function displayWorkouts(workouts, selectedDate) {
+			const workoutList = document.getElementById('workoutList');
+			workoutList.innerHTML = '';
+
+			const filteredWorkouts = workouts.filter(workout => 
+				isSameDay(parseISO(workout.date), selectedDate)
+			);
+
+			if (filteredWorkouts.length === 0) {
+				workoutList.innerHTML = '<p class="text-gray-500">No hay entrenamientos para este día.</p>';
+				return;
+			}
+
+			filteredWorkouts.forEach(workout => {
+				const workoutEl = document.createElement('div');
+				workoutEl.className = 'ToggleContent cursor-pointer transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-4 rounded-lg shadow-lg mb-2';
+				workoutEl.innerHTML = `
+					<h4 class="font-bold">${workout.title}</h4>
+					<p class="text-[#6e6e77] hidden mt-2">${workout.description}</p>
+				`;
+				workoutList.appendChild(workoutEl);
+			});
+
+			// Activar el toggle para los nuevos elementos
+			activeContent();
+		}
+
+		function activeContent() {
+			const toggleContents = document.querySelectorAll(".ToggleContent");
+
+			toggleContents.forEach(toggleContent => {
+				toggleContent.addEventListener("click", () => {
+					const paragraph = toggleContent.querySelector('p');
+					if (paragraph) {
+						paragraph.classList.toggle('hidden');
+					}
+				});
+			});
+		}
+
+		function highlightSelectedDay(date) {
+			document.querySelectorAll('#weekGrid > div').forEach(dayEl => {
+				if (dayEl.dataset.date === format(date, 'yyyy-MM-dd')) {
+					dayEl.classList.add('selected-day');
+				} else {
+					dayEl.classList.remove('selected-day');
+				}
+			});
+		}
+
+		async function updateWeekDisplay() {
+			const weekEnd = addDays(currentWeekStart, 4);
+			document.getElementById('weekDisplay').textContent = `${format(currentWeekStart, 'd MMM', { locale: es })} - ${format(weekEnd, 'd MMM yyyy', { locale: es })}`;
+
+			const workouts = await loadWorkouts(currentWeekStart, weekEnd);
+			
+			// Actualizar las fechas en la cuadrícula
+			const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
+			const dayElements = document.querySelectorAll('#weekGrid > div');
+			days.forEach((day, index) => {
+				const dayEl = dayElements[index];
+				dayEl.dataset.date = format(day, 'yyyy-MM-dd');
+				dayEl.querySelector('span:first-child').textContent = format(day, 'EEE', { locale: es });
+				dayEl.querySelector('span:last-child').textContent = format(day, 'd');
+				
+				dayEl.addEventListener('click', () => {
+					selectedDate = day;
+					highlightSelectedDay(selectedDate);
+					displayWorkouts(workouts, selectedDate);
+				});
+			});
+
+			// Seleccionar el primer día de la semana por defecto
+			selectedDate = currentWeekStart;
+			highlightSelectedDay(selectedDate);
+			displayWorkouts(workouts, selectedDate);
+		}
+
+		document.getElementById('prevWeek').addEventListener('click', () => {
+			currentWeekStart = subWeeks(currentWeekStart, 1);
+			updateURL(currentWeekStart);
+			updateWeekDisplay();
+		});
+
+		document.getElementById('nextWeek').addEventListener('click', () => {
+			currentWeekStart = addWeeks(currentWeekStart, 1);
+			updateURL(currentWeekStart);
+			updateWeekDisplay();
+		});
+
+		document.addEventListener('DOMContentLoaded', () => {
+			currentWeekStart = startOfWeek(getWeekFromURL(), { weekStartsOn: 1 });
+			updateWeekDisplay();
+		});
+	</script>
 </html>
