@@ -37,6 +37,16 @@ const CrossfitCalendar = () => {
     setSelectedEvent(event);
   };
 
+  // Función para convertir <br> en saltos de línea reales
+  const formatDescription = (description) => {
+    return description.split('<br>').map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < description.split('<br>').length - 1 && <br />}
+      </React.Fragment>
+    ));
+  };
+
   return (
     <div className="h-screen flex flex-col relative">
       <Calendar
@@ -60,7 +70,7 @@ const CrossfitCalendar = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">{selectedEvent.title}</h3>
-            <p className="text-gray-600 mb-6">{selectedEvent.desc}</p>
+            <p className="text-gray-600 mb-6">{formatDescription(selectedEvent.desc)}</p>
             <div className="flex justify-end">
               <button
                 className="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
