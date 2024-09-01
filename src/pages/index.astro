@@ -27,11 +27,11 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 						</svg>
 					</a>
-					<!-- <a href="/agregar-entrenamiento" class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded-full transition duration-300" title="Agregar Entrenamiento">
+					<a href="/agregar-entrenamiento" class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded-full transition duration-300" title="Agregar Entrenamiento">
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 						</svg>
-					</a> -->
+					</a>
 				</div>
 			</div>
 			
@@ -94,30 +94,40 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		}
 
 		async function loadWorkouts(start, end) {
-			const workoutsQuery = query(
-				collection(db, "workouts"),
-				where("date", ">=", format(start, 'yyyy-MM-dd')),
-				where("date", "<=", format(end, 'yyyy-MM-dd')),
-				orderBy("date")
-			);
+    console.log('Cargando entrenamientos para el rango:', format(start, 'yyyy-MM-dd'), 'a', format(end, 'yyyy-MM-dd'));
+    const workoutsQuery = query(
+        collection(db, "workouts"),
+        where("date", ">=", format(start, 'yyyy-MM-dd')),
+        where("date", "<=", format(end, 'yyyy-MM-dd')),
+        orderBy("date", "asc"),
+        orderBy("id", "asc")
+    );
 
-			const querySnapshot = await getDocs(workoutsQuery);
-			const workouts = [];
+    const querySnapshot = await getDocs(workoutsQuery);
+    const workouts = [];
 
-			querySnapshot.forEach((doc) => {
-				workouts.push({ id: doc.id, ...doc.data() });
-			});
+    querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        workouts.push({
+            ...data,
+            date: parseISO(data.date)
+        });
+    });
 
-			return workouts;
-		}
+    console.log('Entrenamientos cargados:', workouts);
+    return workouts;
+}
 
 		function displayWorkouts(workouts, selectedDate) {
+			console.log('Mostrando entrenamientos para la fecha:', format(selectedDate, 'yyyy-MM-dd'));
+			console.log('Todos los entrenamientos:', workouts);
+			
 			const workoutList = document.getElementById('workoutList');
 			workoutList.innerHTML = '';
 
-			const filteredWorkouts = workouts.filter(workout => 
-				isSameDay(parseISO(workout.date), selectedDate)
-			);
+			const filteredWorkouts = workouts.filter(workout => isSameDay(workout.date, selectedDate));
+
+			console.log('Entrenamientos filtrados:', filteredWorkouts);
 
 			if (filteredWorkouts.length === 0) {
 				workoutList.innerHTML = '<p class="text-gray-500">No hay entrenamientos para este día.</p>';
@@ -129,7 +139,7 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 				workoutEl.className = 'ToggleContent cursor-pointer transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-4 rounded-lg shadow-lg mb-2';
 				workoutEl.innerHTML = `
 					<h4 class="font-bold">${workout.title}</h4>
-					<p class="text-[#6e6e77] hidden mt-2">${workout.description}</p>
+					<p class="text-[#6e6e77] hidden mt-2 whitespace-pre-line">${workout.description}</p>
 				`;
 				workoutList.appendChild(workoutEl);
 			});

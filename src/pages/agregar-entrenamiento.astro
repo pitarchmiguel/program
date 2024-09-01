@@ -12,18 +12,19 @@
 	<body class="w-full min-h-screen flex flex-col items-center bg-gray-100">
 		<div class="w-full max-w-2xl bg-white shadow-lg rounded-lg my-8 p-6">
 			<h1 class="text-3xl font-bold mb-6 text-gray-800">Agregar Nuevo Entrenamiento</h1>
+			<div id="notification" class="hidden mb-4 p-4 rounded-md"></div>
 			<form id="workoutForm" class="space-y-4">
 				<div>
 					<label for="workoutDate" class="block text-sm font-medium text-gray-700">Fecha</label>
-					<input type="date" id="workoutDate" name="workoutDate" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+					<input type="date" id="workoutDate" name="workoutDate" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
 				</div>
 				<div>
 					<label for="workoutTitle" class="block text-sm font-medium text-gray-700">Título</label>
-					<input type="text" id="workoutTitle" name="workoutTitle" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+					<input type="text" id="workoutTitle" name="workoutTitle" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
 				</div>
 				<div>
 					<label for="workoutDescription" class="block text-sm font-medium text-gray-700">Descripción</label>
-					<textarea id="workoutDescription" name="workoutDescription" rows="3" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
+					<textarea id="workoutDescription" name="workoutDescription" rows="5" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
 				</div>
 				<div class="flex justify-between">
 					<button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300">
@@ -40,40 +41,60 @@
 		body {
 			font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 		}
+		.notification-success {
+			background-color: #d4edda;
+			border-color: #c3e6cb;
+			color: #155724;
+		}
+		.notification-error {
+			background-color: #f8d7da;
+			border-color: #f5c6cb;
+			color: #721c24;
+		}
 	</style>
 	
 	<script>
 		import { db } from '../firebase';
 		import { collection, addDoc } from 'firebase/firestore';
 		import { startOfWeek, format } from 'date-fns';
-
+	
+		function showNotification(message, isError = false) {
+			const notification = document.getElementById('notification');
+			notification.textContent = message;
+			notification.classList.remove('hidden', 'notification-success', 'notification-error');
+			notification.classList.add(isError ? 'notification-error' : 'notification-success');
+			
+			setTimeout(() => {
+				notification.classList.add('hidden');
+			}, 3000);
+		}
+	
 		async function handleFormSubmit(event) {
 			event.preventDefault();
 			
-			const date = document.getElementById('workoutDate').value;
-			const title = document.getElementById('workoutTitle').value;
-			const description = document.getElementById('workoutDescription').value;
-
+			const form = event.target;
+			const date = form.workoutDate.value;
+			const title = form.workoutTitle.value;
+			const description = form.workoutDescription.value;
+	
 			try {
 				await addDoc(collection(db, "workouts"), {
 					date: date,
 					title: title,
-					description: description
+					description: description.replace(/\n/g, '<br>') // Reemplazar saltos de línea con <br>
 				});
-				console.log("Entrenamiento añadido con éxito");
 				
-				// Calcular el inicio de la semana para la fecha del entrenamiento
-				const workoutDate = new Date(date);
-				const weekStart = startOfWeek(workoutDate, { weekStartsOn: 1 });
-				const formattedWeekStart = format(weekStart, 'yyyy-MM-dd');
+				showNotification("Entrenamiento añadido correctamente");
 				
-				// Redirigir a la página principal con la semana del entrenamiento
-				window.location.href = `/?week=${formattedWeekStart}`;
+				// Resetear el formulario
+				form.reset();
+	
 			} catch (error) {
 				console.error("Error al añadir el entrenamiento: ", error);
+				showNotification("Error al añadir el entrenamiento", true);
 			}
 		}
-
+	
 		document.addEventListener('DOMContentLoaded', () => {
 			const form = document.getElementById('workoutForm');
 			form.addEventListener('submit', handleFormSubmit);
