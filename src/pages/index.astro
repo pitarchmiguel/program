@@ -27,11 +27,6 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 						</svg>
 					</a>
-					<!-- <a href="/agregar-entrenamiento" class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded-full transition duration-300" title="Agregar Entrenamiento">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-						</svg>
-					</a> -->
 				</div>
 			</div>
 			
@@ -94,29 +89,29 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		}
 
 		async function loadWorkouts(start, end) {
-    console.log('Cargando entrenamientos para el rango:', format(start, 'yyyy-MM-dd'), 'a', format(end, 'yyyy-MM-dd'));
-    const workoutsQuery = query(
-        collection(db, "workouts"),
-        where("date", ">=", format(start, 'yyyy-MM-dd')),
-        where("date", "<=", format(end, 'yyyy-MM-dd')),
-        orderBy("date", "asc"),
-        orderBy("id", "asc")
-    );
+			console.log('Cargando entrenamientos para el rango:', format(start, 'yyyy-MM-dd'), 'a', format(end, 'yyyy-MM-dd'));
+			const workoutsQuery = query(
+				collection(db, "workouts"),
+				where("date", ">=", format(start, 'yyyy-MM-dd')),
+				where("date", "<=", format(end, 'yyyy-MM-dd')),
+				orderBy("date", "asc"),
+				orderBy("id", "asc")
+			);
 
-    const querySnapshot = await getDocs(workoutsQuery);
-    const workouts = [];
+			const querySnapshot = await getDocs(workoutsQuery);
+			const workouts = [];
 
-    querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        workouts.push({
-            ...data,
-            date: parseISO(data.date)
-        });
-    });
+			querySnapshot.forEach((doc) => {
+				const data = doc.data();
+				workouts.push({
+					...data,
+					date: parseISO(data.date)
+				});
+			});
 
-    console.log('Entrenamientos cargados:', workouts);
-    return workouts;
-}
+			console.log('Entrenamientos cargados:', workouts);
+			return workouts;
+		}
 
 		function displayWorkouts(workouts, selectedDate) {
 			console.log('Mostrando entrenamientos para la fecha:', format(selectedDate, 'yyyy-MM-dd'));
@@ -193,8 +188,13 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 				});
 			});
 
-			// Seleccionar el primer día de la semana por defecto
-			selectedDate = currentWeekStart;
+			// Seleccionar el día actual si está en la semana mostrada, de lo contrario seleccionar el primer día
+			const today = new Date();
+			if (today >= currentWeekStart && today <= weekEnd) {
+				selectedDate = today;
+			} else {
+				selectedDate = currentWeekStart;
+			}
 			highlightSelectedDay(selectedDate);
 			displayWorkouts(workouts, selectedDate);
 		}
@@ -212,7 +212,8 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		});
 
 		document.addEventListener('DOMContentLoaded', () => {
-			currentWeekStart = startOfWeek(getWeekFromURL(), { weekStartsOn: 1 });
+			const urlDate = getWeekFromURL();
+			currentWeekStart = startOfWeek(urlDate, { weekStartsOn: 1 });
 			updateWeekDisplay();
 		});
 	</script>
