@@ -4,7 +4,7 @@ import { es } from 'date-fns/locale';
 
 const today = new Date();
 const startDate = startOfWeek(today, { weekStartsOn: 1 });
-const endDate = addDays(startDate, 5); // Solo 5 días, de lunes a viernes
+const endDate = addDays(startDate, 4); // Solo 5 días, de lunes a viernes
 
 const days = eachDayOfInterval({ start: startDate, end: endDate });
 ---
