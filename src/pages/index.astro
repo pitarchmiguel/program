@@ -209,9 +209,14 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		});
 		
 		document.addEventListener('DOMContentLoaded', () => {
-			const urlDate = getWeekFromURL();
-			currentWeekStart = startOfWeek(urlDate, { weekStartsOn: 1 });
-			updateWeekDisplay();
+		const savedWeekStart = localStorage.getItem('currentWeekStart');
+		const urlDate = savedWeekStart ? parseISO(savedWeekStart) : getWeekFromURL();
+		currentWeekStart = startOfWeek(urlDate, { weekStartsOn: 1 });
+		updateWeekDisplay();
+		});
+
+		window.addEventListener('beforeunload', () => {
+ 		localStorage.setItem('currentWeekStart', format(currentWeekStart, 'yyyy-MM-dd'));
 		});
 		</script>
 </html>
