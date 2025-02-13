@@ -1,5 +1,5 @@
 ---
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays, addWeeks, subWeeks, parseISO } from 'date-fns';
+import { format, startOfWeek, eachDayOfInterval, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const today = new Date();
@@ -17,10 +17,10 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		<meta name="generator" content={Astro.generator} />
 		<title>CrossFit</title>
 	</head>
-	<body class="w-full min-h-screen flex flex-col items-center bg-gray-100">
-		<div class="w-full min-h-screen max-w-4xl bg-white shadow-lg rounded-lg my-1 p-6">
+	<body class="w-full min-h-screen flex flex-col items-center">
+		<div class="w-full min-h-screen max-w-4xl shadow-lg rounded-lg my-1 p-6">
 			<div class="flex justify-between items-center mb-6">
-				<h1 class="text-2xl font-bold text-gray-800">77Feet Program 🏋️‍♀️</h1>
+				<h1 class="text-2xl font-bold">77Feet Program 🏋️‍♀️</h1>
 				<div class="flex space-x-2">
 					<a href="/calendar" class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded-full transition duration-300" title="Ver Calendario">
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -31,13 +31,13 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 			</div>
 			
 			<div class="flex justify-center items-center mb-6 gap-4">
-				<button id="prevWeek" class="text-blue-500 hover:text-blue-700">
+				<button id="prevWeek">
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M15 18l-6-6 6-6"/>
 					</svg>
 				</button>
-				<h3 id="weekDisplay" class="text-xl font-semibold text-gray-700"></h3>
-				<button id="nextWeek" class="text-blue-500 hover:text-blue-700">
+				<h3 id="weekDisplay" class="text-xl font-semibold"></h3>
+				<button id="nextWeek">
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M9 18l6-6-6-6"/>
 					</svg>
@@ -46,25 +46,29 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		
 			<div class="grid grid-cols-5 gap-4 mb-6" id="weekGrid">
 				{days.map((day) => (
-					<div class="flex flex-col items-center p-2 border rounded-lg cursor-pointer hover:bg-gray-100 transition duration-300" data-date={format(day, 'yyyy-MM-dd')}>
-						<span class="text-sm font-medium text-gray-500">{format(day, 'EEE', { locale: es })}</span>
-						<span class="text-lg font-bold text-gray-700">{format(day, 'd')}</span>
+
+					<div class="flex flex-col items-center p-1 border rounded-full cursor-pointer hover:bg-gray-800 transition duration-300" data-date={format(day, 'yyyy-MM-dd')}>
+
+						<span class="text-sm font-medium">{format(day, 'EEE', { locale: es })}</span>
+						<span class="text-lg font-bold">{format(day, 'd')}</span>
 					</div>
 				))}
 			</div>
 
 			<div id="workoutList" class="space-y-4">
-				<!-- Los entrenamientos se cargarán aquí dinámicamente -->
+				<!-- Los entrenamientos se cargarán aquíd dinámicamente -->
 			</div>
 		</div>
 	</body>
 	<style>
-		body {
+		html, body {
 			font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+			background-color: #1a1a1a;
+			color: #f9f9f9;
 		}
 		.selected-day {
 			background-color: #e5e7eb;
-			border-color: #3b82f6;
+			color: #242424;
 		}
 	</style>
 	
@@ -131,28 +135,14 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		
 			filteredWorkouts.forEach(workout => {
 				const workoutEl = document.createElement('div');
-				workoutEl.className = 'ToggleContent cursor-pointer transition duration-300 ease-in-out hover:bg-gray-100 hover:shadow-xl border border-solid divide-slate-500 p-4 rounded-lg shadow-lg mb-2';
+				workoutEl.className = 'hover:shadow-xl p-5 rounded-lg shadow-lg mb-2 bg-[#242424]';
 				workoutEl.innerHTML = `
-					<h4 class="font-bold">${workout.title}</h4>
-					<p class="text-[#6e6e77] hidden mt-2 whitespace-pre-line">${workout.description}</p>
+					<h5 class="font-bold">${workout.title}</h4>
+					<p class="text-[#f9f9f9] mt-2 whitespace-pre-line">${workout.description}</p>
 				`;
 				workoutList.appendChild(workoutEl);
 			});
 		
-			activeContent();
-		}
-		
-		function activeContent() {
-			const toggleContents = document.querySelectorAll(".ToggleContent");
-		
-			toggleContents.forEach(toggleContent => {
-				toggleContent.addEventListener("click", () => {
-					const paragraph = toggleContent.querySelector('p');
-					if (paragraph) {
-						paragraph.classList.toggle('hidden');
-					}
-				});
-			});
 		}
 		
 		function highlightSelectedDay(date) {
@@ -209,14 +199,9 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		});
 		
 		document.addEventListener('DOMContentLoaded', () => {
-		const savedWeekStart = localStorage.getItem('currentWeekStart');
-		const urlDate = savedWeekStart ? parseISO(savedWeekStart) : getWeekFromURL();
-		currentWeekStart = startOfWeek(urlDate, { weekStartsOn: 1 });
-		updateWeekDisplay();
+			const urlDate = getWeekFromURL();
+			currentWeekStart = startOfWeek(urlDate, { weekStartsOn: 1 });
+			updateWeekDisplay();
 		});
-
-		window.addEventListener('beforeunload', () => {
- 		localStorage.setItem('currentWeekStart', format(currentWeekStart, 'yyyy-MM-dd'));
-		});
-		</script>
+	</script>
 </html>
