@@ -1,9 +1,8 @@
 ---
-import { format, startOfWeek, eachDayOfInterval, addDays } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { eachDayOfInterval, addDays } from 'date-fns';
 
 const today = new Date();
-const startDate = startOfWeek(today, { weekStartsOn: 1 });
+const startDate = new Date();
 const endDate = addDays(startDate, 4); // Solo 5 días, de lunes a viernes
 
 const days = eachDayOfInterval({ start: startDate, end: endDate });
@@ -18,45 +17,16 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		<title>CrossFit</title>
 	</head>
 	<body class="w-full min-h-screen flex flex-col items-center">
-		<div class="w-full min-h-screen max-w-4xl shadow-lg rounded-lg my-1 p-6">
-			<div class="flex justify-between items-center mb-6">
-				<h1 class="text-2xl font-bold">77Feet Program 🏋️‍♀️</h1>
-				<div class="flex space-x-2">
-					<a href="/calendar" class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded-full transition duration-300" title="Ver Calendario">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-						</svg>
-					</a>
-				</div>
-			</div>
+		<div class="w-full min-h-screen max-w-4xl shadow-lg rounded-lg my-1 p-5">
 			
-			<div class="flex justify-center items-center mb-6 gap-4">
-				<button id="prevWeek">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M15 18l-6-6 6-6"/>
-					</svg>
-				</button>
-				<h3 id="weekDisplay" class="text-xl font-semibold"></h3>
-				<button id="nextWeek">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M9 18l6-6-6-6"/>
-					</svg>
-				</button>
-			</div>
-		
-			<div class="grid grid-cols-5 gap-4 mb-6" id="weekGrid">
-				{days.map((day) => (
-
-					<div class="flex flex-col items-center p-1 border rounded-full cursor-pointer hover:bg-gray-800 transition duration-300" data-date={format(day, 'yyyy-MM-dd')}>
-
-						<span class="text-sm font-medium">{format(day, 'EEE', { locale: es })}</span>
-						<span class="text-lg font-bold">{format(day, 'd')}</span>
-					</div>
-				))}
+			<div class="overflow-x-auto hide-scrollbar" id="weekContainer">
+				<div class="flex gap-4 mb-6" id="weekGrid">
+					<!-- Los días se generarán dinámicamente aquí -->
+				</div>
 			</div>
 
 			<div id="workoutList" class="space-y-4">
-				<!-- Los entrenamientos se cargarán aquíd dinámicamente -->
+				<!-- Los entrenamientos se cargarán aquí -->
 			</div>
 		</div>
 	</body>
@@ -69,13 +39,44 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		.selected-day {
 			background-color: #e5e7eb;
 			color: #242424;
+			border: 2px solid #f9f9f9;
+			transform: scale(1.05);
+		}
+		.hide-scrollbar {
+			-ms-overflow-style: none;
+			scrollbar-width: none;
+			overflow-x: scroll; /* Asegura que el scroll horizontal está habilitado */
+		}
+		.hide-scrollbar::-webkit-scrollbar {
+			display: none;
+		}
+		#weekGrid {
+			display: flex;
+			gap: 1rem;
+			min-width: min-content;
+			scroll-snap-type: x mandatory;
+			scroll-behavior: smooth;
+			padding: 0.5rem;
+		}
+		#weekGrid > div {
+			scroll-snap-align: start;
+			flex-shrink: 0;
+			min-width: 60px;
+			min-height: 60px;
+			aspect-ratio: 1;
+			border-radius: 50%;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 0.5rem;
 		}
 	</style>
 	
 	<script>
 		import { db } from '../firebase';
 		import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-		import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, isSameDay, eachDayOfInterval, addDays } from 'date-fns';
+		import { format, startOfWeek, endOfWeek, parseISO, isSameDay, eachDayOfInterval, subMonths, addMonths, getDay } from 'date-fns';
 		import { es } from 'date-fns/locale';
 		
 		let currentWeekStart;
@@ -147,7 +148,7 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		
 		function highlightSelectedDay(date) {
 			document.querySelectorAll('#weekGrid > div').forEach(dayEl => {
-				if (dayEl.dataset.date === format(date, 'yyyy-MM-dd')) {
+				if ((dayEl as HTMLElement).dataset.date === format(date, 'yyyy-MM-dd')) {
 					dayEl.classList.add('selected-day');
 				} else {
 					dayEl.classList.remove('selected-day');
@@ -156,48 +157,70 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 		}
 		
 		async function updateWeekDisplay() {
-			const weekEnd = addDays(currentWeekStart, 4); // Asegura que el viernes sea el último día
-			document.getElementById('weekDisplay').textContent = `${format(currentWeekStart, 'd MMM', { locale: es })} - ${format(weekEnd, 'd MMM yyyy', { locale: es })}`;
-		
-			const workouts = await loadWorkouts(currentWeekStart, weekEnd);
+			const weekGrid = document.getElementById('weekGrid');
+			weekGrid.innerHTML = '';
 			
-			const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
-			const dayElements = document.querySelectorAll('#weekGrid > div');
-			days.forEach((day, index) => {
-				const dayEl = dayElements[index];
+			 // Establecer la fecha actual al principio
+			const today = new Date();
+			selectedDate = today;
+			
+			// Calcular fecha de inicio (6 meses antes) y fin (6 meses después)
+			const sixMonthsAgo = subMonths(currentWeekStart, 6);
+			const sixMonthsAhead = addMonths(currentWeekStart, 6);
+			const startDate = startOfWeek(sixMonthsAgo, { weekStartsOn: 1 });
+			const endDate = endOfWeek(sixMonthsAhead, { weekStartsOn: 1 });
+			
+			// Generar todos los días en el rango
+			const allDays = eachDayOfInterval({ start: startDate, end: endDate });
+			
+			// Filtrar solo días de lunes a viernes
+			const weekdays = allDays.filter(day => {
+				const dayOfWeek = getDay(day);
+				return dayOfWeek >= 1 && dayOfWeek <= 5; // 1 = Lunes, 5 = Viernes
+			});
+			
+			// Cargar entrenamientos para todo el período
+			const workouts = await loadWorkouts(startDate, endDate);
+			
+			weekdays.forEach((day) => {
+				const dayEl = document.createElement('div');
+				const isToday = isSameDay(day, today);
+				dayEl.className = `flex flex-col items-center justify-center w-14 h-14 border rounded-full cursor-pointer hover:bg-gray-800 transition duration-300 ${isToday ? 'selected-day' : ''}`;
 				dayEl.dataset.date = format(day, 'yyyy-MM-dd');
-				dayEl.querySelector('span:first-child').textContent = format(day, 'EEE', { locale: es });
-				dayEl.querySelector('span:last-child').textContent = format(day, 'd');
+				dayEl.innerHTML = `
+					<span class="text-[10px] font-medium">${format(day, 'EEE', { locale: es })}</span>
+					<span class="text-sm font-bold">${format(day, 'd')}</span>
+					<span class="text-[10px] text-gray-500">${format(day, 'MMM', { locale: es })}</span>
+				`;
 				
 				dayEl.addEventListener('click', () => {
+					// Eliminar la clase selected-day de todos los días
+					document.querySelectorAll('#weekGrid > div').forEach(el => {
+						el.classList.remove('selected-day');
+					});
+					// Añadir la clase al día seleccionado
+					dayEl.classList.add('selected-day');
 					selectedDate = day;
-					highlightSelectedDay(selectedDate);
 					displayWorkouts(workouts, selectedDate);
 				});
+				
+				weekGrid.appendChild(dayEl);
+				
+				// Si es el día actual, mostrar los entrenamientos
+				if (isToday) {
+					displayWorkouts(workouts, day);
+				}
 			});
 		
-			const today = new Date();
-			if (today >= currentWeekStart && today <= weekEnd) {
-				selectedDate = today;
-			} else {
-				selectedDate = currentWeekStart;
+			// Desplazarse a la fecha actual
+			const currentElement = weekGrid.querySelector(`[data-date="${format(today, 'yyyy-MM-dd')}"]`);
+			if (currentElement) {
+				currentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 			}
-			highlightSelectedDay(selectedDate);
+			
 			displayWorkouts(workouts, selectedDate);
 		}
-		
-		document.getElementById('prevWeek').addEventListener('click', () => {
-			currentWeekStart = subWeeks(currentWeekStart, 1);
-			updateURL(currentWeekStart);
-			updateWeekDisplay();
-		});
-		
-		document.getElementById('nextWeek').addEventListener('click', () => {
-			currentWeekStart = addWeeks(currentWeekStart, 1);
-			updateURL(currentWeekStart);
-			updateWeekDisplay();
-		});
-		
+
 		document.addEventListener('DOMContentLoaded', () => {
 			const urlDate = getWeekFromURL();
 			currentWeekStart = startOfWeek(urlDate, { weekStartsOn: 1 });
