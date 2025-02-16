@@ -9,29 +9,35 @@
 		<meta name="generator" content={Astro.generator} />
 		<title>Agregar Entrenamiento</title>
 	</head>
-	<body class="w-full min-h-screen flex flex-col items-center bg-gray-100">
-		<div class="w-full max-w-2xl bg-white shadow-lg rounded-lg my-8 p-6">
-			<h1 class="text-3xl font-bold mb-6 text-gray-800">Agregar Nuevo Entrenamiento</h1>
+	<body class="w-full h-full flex flex-col bg-[#242424]">
+		<div class="w-full h-full my-8 p-6">
+			<h1 class="text-3xl font-bold mb-6 text-[#f9f9f9]">new workout</h1>
 			<div id="notification" class="hidden mb-4 p-4 rounded-md"></div>
-			<form id="workoutForm" class="space-y-4">
+			<form id="workoutForm" class="space-y-4 text-[#f9f9f9]">
 				<div>
-					<label for="workoutDate" class="block text-sm font-medium text-gray-700">Fecha</label>
+					<label for="workoutDate" class="block text-sm font-medium">Fecha</label>
 					<input type="date" id="workoutDate" name="workoutDate" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
 				</div>
+				 <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="workoutLetter" class="block text-sm font-medium">Letra</label>
+                        <input type="text" id="workoutLetter" name="workoutLetter" maxlength="1" required class="p-3 mt-1 block w-16 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    </div>
+                    <div class="flex-auto">
+                        <label for="workoutTitle" class="block text-sm font-medium">Título</label>
+                        <input type="text" id="workoutTitle" name="workoutTitle" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    </div>
+                </div>
 				<div>
-					<label for="workoutTitle" class="block text-sm font-medium text-gray-700">Título</label>
-					<input type="text" id="workoutTitle" name="workoutTitle" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-				</div>
-				<div>
-					<label for="workoutDescription" class="block text-sm font-medium text-gray-700">Descripción</label>
+					<label for="workoutDescription" class="block text-sm font-medium">Descripción</label>
 					<textarea id="workoutDescription" name="workoutDescription" rows="7" required class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
 				</div>
 				<div class="flex justify-between">
-					<button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300">
-						Añadir Entrenamiento
+					<button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300">
+						Add workout
 					</button>
 					<a href="/" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300">
-						Volver
+						Back
 					</a>
 				</div>
 			</form>
@@ -76,15 +82,17 @@
 		async function handleFormSubmit(event) {
 			event.preventDefault();
 			
-			const date = document.getElementById('workoutDate').value;
-			const title = document.getElementById('workoutTitle').value;
-			const description = document.getElementById('workoutDescription').value;
+			const date = (document.getElementById('workoutDate') as HTMLInputElement).value;
+			const letter = (document.getElementById('workoutLetter') as HTMLInputElement).value;
+			const title = (document.getElementById('workoutTitle') as HTMLInputElement).value;
+			const description = (document.getElementById('workoutDescription') as HTMLTextAreaElement).value;
 			const uniqueId = generateUniqueId();
 
 			try {
 				await addDoc(collection(db, "workouts"), {
 					id: uniqueId,
 					date: format(new Date(date), 'yyyy-MM-dd'),
+					letter: letter,
 					title: title,
 					description: description.replace(/\n/g, '<br>'),
 					createdAt: new Date().toISOString()
