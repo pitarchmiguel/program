@@ -19,14 +19,14 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
     <body class="w-full min-h-screen flex flex-col items-center">
 
         <div class="bg-[#242424] w-full p-5">
-            <div class="flex justify-between items-center w-full px-4 mt-2">
-                <button id="prevWeek" class="bg-gray-700 text-white px-4 py-2 rounded">
+            <div class="flex justify-evenly items-center w-full px-4 mt-2">
+                <button id="prevWeek" class=" text-white px-4 py-2 rounded">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
                 <span id="currentMonth" class="text-white font-bold"></span>
-                <button id="nextWeek" class="bg-gray-700 text-white px-4 py-2 rounded">
+                <button id="nextWeek" class=" text-white px-4 py-2 rounded">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
@@ -34,8 +34,8 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
             </div>
             
             <div id="weekGrid">
-				<!-- Los días se generarán dinámicamente aquí -->
-			</div>
+                <!-- Los días se generarán dinámicamente aquí -->
+            </div>
         </div>
         <div class="w-full min-h-screen p-5 max-w-xl">
             
@@ -51,20 +51,7 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
             background-color: #1a1a1a;
             color: #f9f9f9;
         }
-        .selected-day {
-            background-color: #e5e7eb;
-            color: #242424;
-            border: 2px solid #f9f9f9;
-            transform: scale(1.05);
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-            overflow-x: scroll; /* Asegura que el scroll horizontal está habilitado */
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
+
         #weekGrid {
             display: flex;
             justify-content: center;
@@ -153,20 +140,32 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
             console.log('Entrenamientos filtrados:', filteredWorkouts);
         
             if (filteredWorkouts.length === 0) {
-                workoutList.innerHTML = '<p class="text-gray-500">No hay entrenamientos para este día.</p>';
+                workoutList.innerHTML = '<p class="text-gray-500 font-bold">REST DAY 🤟🏼</p>';
                 return;
             }
-        
             filteredWorkouts.forEach(workout => {
                 const workoutEl = document.createElement('div');
                 workoutEl.className = 'hover:shadow-xl p-5 rounded-lg shadow-lg mb-2 bg-[#242424]';
                 workoutEl.innerHTML = `
-                    <h5 class="font-bold">${workout.title}</h4>
+                    <div class="flex gap-2 items-center">
+                        ${workout.letter ? `<p class="text-[#f9f9f9] bg-sky-600 size-6 p-1 rounded-sm text-sm bold flex items-center justify-center font-bold">${workout.letter}</p>` : ''}
+                        <h5 class="font-bold">${workout.title}</h5>
+                    </div>
                     <p class="text-[#f9f9f9] mt-2 whitespace-pre-line">${workout.description}</p>
+                    ${workout.notes ? `<button class="text-[#aaa] italic text-sm mt-2" onclick="toggleNotes('${workout.id}')">Notas +</button>` : ''}
+                    <div id="notes-${workout.id}" class="hidden mt-2 text-[#f9f9f9] whitespace-pre-line">${workout.notes}</div>
                 `;
                 workoutList.appendChild(workoutEl);
             });
-        
+        }
+
+        window.toggleNotes = function(id) {
+            const notesEl = document.getElementById(`notes-${id}`);
+            if (notesEl.classList.contains('hidden')) {
+                notesEl.classList.remove('hidden');
+            } else {
+                notesEl.classList.add('hidden');
+            }
         }
         
         async function updateWeekDisplay() {
