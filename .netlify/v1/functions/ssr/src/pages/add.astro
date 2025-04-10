@@ -1,0 +1,155 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Agregar Entrenamiento">
+	<div class="max-w-2xl mx-auto">
+		<div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+			<h1 class="text-3xl font-bold mb-6">Nuevo Entrenamiento</h1>
+			
+			<div id="notification" class="hidden mb-4 p-4 rounded-md"></div>
+			
+			<form id="workoutForm" class="space-y-6">
+				<div>
+					<label for="workoutDate" class="block text-sm font-medium mb-1">Fecha</label>
+					<input 
+						type="date" 
+						id="workoutDate" 
+						name="workoutDate" 
+						required 
+						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+					>
+				</div>
+				
+				<div class="flex space-x-4">
+					<div class="flex-1">
+						<label for="workoutLetter" class="block text-sm font-medium mb-1">Letra</label>
+						<input 
+							type="text" 
+							id="workoutLetter" 
+							name="workoutLetter" 
+							maxlength="1" 
+							required 
+							class="w-16 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+						>
+					</div>
+					<div class="flex-auto">
+						<label for="workoutTitle" class="block text-sm font-medium mb-1">Título</label>
+						<input 
+							type="text" 
+							id="workoutTitle" 
+							name="workoutTitle" 
+							required 
+							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+						>
+					</div>
+				</div>
+				
+				<div>
+					<label for="workoutDescription" class="block text-sm font-medium mb-1">Workout</label>
+					<textarea 
+						id="workoutDescription" 
+						name="workoutDescription" 
+						rows="7" 
+						required 
+						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+					></textarea>
+				</div>
+				
+				<div>
+					<label for="workoutNotes" class="block text-sm font-medium mb-1">Notas</label>
+					<textarea 
+						id="workoutNotes" 
+						name="workoutNotes" 
+						rows="4" 
+						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+					></textarea>
+				</div>
+				
+				<div class="flex justify-between">
+					<button 
+						type="submit" 
+						class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md transition-colors"
+					>
+						Añadir entrenamiento
+					</button>
+					<a 
+						href="/" 
+						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+					>
+						Volver
+					</a>
+				</div>
+			</form>
+		</div>
+	</div>
+</Layout>
+
+<script>
+	import { db } from '../firebase';
+	import { collection, addDoc } from 'firebase/firestore';
+	import { startOfWeek, format } from 'date-fns';
+
+	function showNotification(message, isError = false) {
+		const notification = document.getElementById('notification');
+		notification.textContent = message;
+		notification.classList.remove('hidden', 'notification-success', 'notification-error');
+		notification.classList.add(isError ? 'notification-error' : 'notification-success');
+		
+		setTimeout(() => {
+			notification.classList.add('hidden');
+		}, 3000);
+	}
+
+	function generateUniqueId() {
+		return Date.now().toString(36) + Math.random().toString(36).substr(2);
+	}
+
+	async function handleFormSubmit(event) {
+		event.preventDefault();
+		
+		const date = document.getElementById('workoutDate').value;
+		const letter = document.getElementById('workoutLetter').value;
+		const title = document.getElementById('workoutTitle').value;
+		const description = document.getElementById('workoutDescription').value;
+		const notes = document.getElementById('workoutNotes').value;
+		const uniqueId = generateUniqueId();
+
+		try {
+			await addDoc(collection(db, "workouts"), {
+				date: format(new Date(date), 'yyyy-MM-dd'),
+				letter: letter,
+				title: title,
+				description: description.replace(/\n/g, '<br>'),
+				notes: notes.replace(/\n/g, '<br>'),
+				id: uniqueId
+			});
+
+			showNotification('Entrenamiento añadido correctamente');
+			document.getElementById('workoutForm').reset();
+		} catch (error) {
+			console.error('Error añadiendo entrenamiento:', error);
+			showNotification('Error al añadir el entrenamiento', true);
+		}
+	}
+
+	document.addEventListener('DOMContentLoaded', () => {
+		document.getElementById('workoutForm').addEventListener('submit', handleFormSubmit);
+	});
+</script>
+
+<style>
+	.notification-success {
+		background-color: #d4edda;
+		border-color: #c3e6cb;
+		color: #155724;
+	}
+	.notification-error {
+		background-color: #f8d7da;
+		border-color: #f5c6cb;
+		color: #721c24;
+	}
+	.hidden {
+		display: none;
+	}
+</style>

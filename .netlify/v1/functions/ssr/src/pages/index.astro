@@ -1,0 +1,211 @@
+---
+import { eachDayOfInterval, addDays, subWeeks, addWeeks, startOfWeek, endOfWeek, format } from 'date-fns';
+import Layout from '../layouts/Layout.astro';
+
+const today = new Date();
+const startDate = new Date();
+const endDate = addDays(startDate, 4); // Solo 5 días, de lunes a viernes
+
+const days = eachDayOfInterval({ start: startDate, end: endDate });
+---
+
+<Layout title="The Program">
+    <div class="space-y-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <div class="w-full text-center mb-2">
+                <span id="currentMonth" class="text-xl font-bold"></span>
+            </div>
+            
+            <div class="relative w-full">
+                <div id="weekGrid" class="flex justify-center w-full">
+                    <!-- Los días se generarán dinámicamente aquí -->
+                </div>
+            </div>
+        </div>
+
+        <div id="workoutList" class="space-y-6">
+            <!-- Los entrenamientos se cargarán aquí -->
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { db } from '../firebase';
+    import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+    import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, eachDayOfInterval, addDays } from 'date-fns';
+    import { es } from 'date-fns/locale';
+
+    let currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    let isScrolling = false;
+    let scrollTimeout;
+    let selectedDate = new Date();
+
+    async function loadWorkoutsForWeek() {
+        const startDate = currentWeekStart;
+        const endDate = addDays(currentWeekStart, 4);
+        
+        const workoutsQuery = query(
+            collection(db, "workouts"),
+            where("date", ">=", format(startDate, 'yyyy-MM-dd')),
+            where("date", "<=", format(endDate, 'yyyy-MM-dd')),
+            orderBy("date", "asc"),
+            orderBy("id", "asc")
+        );
+
+        const querySnapshot = await getDocs(workoutsQuery);
+        const workouts = [];
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            workouts.push({
+                ...data,
+                date: parseISO(data.date)
+            });
+        });
+
+        displayWorkouts(workouts, selectedDate);
+    }
+
+    function selectDay(day) {
+        selectedDate = day;
+        const workoutList = document.getElementById('workoutList');
+        workoutList.innerHTML = '';
+        
+        // Actualizar la clase selected-day
+        document.querySelectorAll('#weekGrid > div').forEach(el => {
+            el.classList.remove('bg-gray-100', 'dark:bg-gray-700');
+        });
+        const selectedDayEl = document.querySelector(`[data-date="${format(day, 'yyyy-MM-dd')}"]`);
+        if (selectedDayEl) {
+            selectedDayEl.classList.add('bg-gray-100', 'dark:bg-gray-700');
+        }
+
+        loadWorkoutsForWeek();
+    }
+
+    function displayWorkouts(workouts, selectedDate) {
+        const workoutList = document.getElementById('workoutList');
+        workoutList.innerHTML = '';
+
+        const filteredWorkouts = workouts.filter(workout => isSameDay(workout.date, selectedDate));
+
+        if (filteredWorkouts.length === 0) {
+            workoutList.innerHTML = '<p class="text-gray-500 font-bold">REST DAY 🤟🏼</p>';
+            return;
+        }
+
+        filteredWorkouts.forEach(workout => {
+            const workoutEl = document.createElement('div');
+            workoutEl.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow';
+            workoutEl.innerHTML = `
+                <div class="flex gap-2 items-center">
+                    ${workout.letter ? `<p class="bg-sky-600 text-white size-6 p-1 rounded-sm text-sm bold flex items-center justify-center font-bold">${workout.letter}</p>` : ''}
+                    <h5 class="font-bold text-gray-900 dark:text-white">${workout.title}</h5>
+                </div>
+                <p class="text-gray-700 dark:text-gray-300 mt-2 whitespace-pre-line">${workout.description}</p>
+                ${workout.notes ? `<button class="text-gray-500 dark:text-gray-400 italic text-sm mt-2" onclick="toggleNotes('${workout.id}')">Notas</button>` : ''}
+                <div id="notes-${workout.id}" class="hidden mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line">${workout.notes}</div>
+            `;
+            workoutList.appendChild(workoutEl);
+        });
+    }
+
+    (window as any).toggleNotes = function(id: string) {
+        const notesEl = document.getElementById(`notes-${id}`);
+        if (notesEl.classList.contains('hidden')) {
+            notesEl.classList.remove('hidden');
+        } else {
+            notesEl.classList.add('hidden');
+        }
+    }
+
+    function updateWeekDisplay() {
+        const weekGrid = document.getElementById('weekGrid');
+        const currentMonth = document.getElementById('currentMonth');
+        
+        // Actualizar el mes y año
+        currentMonth.textContent = format(currentWeekStart, 'MMMM yyyy', { locale: es });
+        
+        // Generar los 5 días de la semana (lunes a viernes)
+        const days = eachDayOfInterval({
+            start: currentWeekStart,
+            end: addDays(currentWeekStart, 4)
+        });
+
+        weekGrid.innerHTML = '';
+        days.forEach(day => {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'flex flex-col items-center p-2 min-w-[60px] justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors';
+            dayEl.dataset.date = format(day, 'yyyy-MM-dd');
+            dayEl.innerHTML = `
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">${format(day, 'EEE', { locale: es })}</span>
+                <span class="text-sm font-bold text-gray-900 dark:text-white">${format(day, 'd')}</span>
+            `;
+            dayEl.addEventListener('click', () => selectDay(day));
+            weekGrid.appendChild(dayEl);
+        });
+
+        // Cargar los entrenamientos para la semana
+        loadWorkoutsForWeek();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateWeekDisplay();
+        
+        const weekGrid = document.getElementById('weekGrid');
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        weekGrid.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, false);
+        
+        weekGrid.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, false);
+        
+        // Añadir soporte para mouse
+        weekGrid.addEventListener('mousedown', (e) => {
+            touchStartX = e.clientX;
+        }, false);
+        
+        weekGrid.addEventListener('mouseup', (e) => {
+            touchEndX = e.clientX;
+            handleSwipe();
+        }, false);
+        
+        function handleSwipe() {
+            const swipeThreshold = 50; // Mínimo de píxeles para considerar un swipe
+            const swipeDistance = touchEndX - touchStartX;
+            
+            if (Math.abs(swipeDistance) < swipeThreshold) return;
+            
+            if (swipeDistance < 0) {
+                // Swipe izquierda (siguiente semana)
+                currentWeekStart = addWeeks(currentWeekStart, 1);
+            } else {
+                // Swipe derecha (semana anterior)
+                currentWeekStart = subWeeks(currentWeekStart, 1);
+            }
+            
+            updateWeekDisplay();
+        }
+    });
+</script>
+
+<style>
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .snap-x {
+        scroll-snap-type: x mandatory;
+    }
+    .snap-center {
+        scroll-snap-align: center;
+    }
+</style>
