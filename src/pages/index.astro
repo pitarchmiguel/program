@@ -50,10 +50,33 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
     let db;
 
     try {
+        // Verificar que todas las variables de entorno estén presentes
+        const requiredEnvVars = [
+            'PUBLIC_FIREBASE_API_KEY',
+            'PUBLIC_FIREBASE_AUTH_DOMAIN',
+            'PUBLIC_FIREBASE_PROJECT_ID',
+            'PUBLIC_FIREBASE_STORAGE_BUCKET',
+            'PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+            'PUBLIC_FIREBASE_APP_ID',
+            'PUBLIC_FIREBASE_MEASUREMENT_ID'
+        ];
+
+        const missingEnvVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
+        
+        if (missingEnvVars.length > 0) {
+            throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+        }
+
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
+        console.log('Firebase initialized successfully');
     } catch (error) {
         console.error('Error initializing Firebase:', error);
+        document.getElementById('workoutList').innerHTML = `
+            <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+                <span class="font-medium">Error:</span> No se pudieron cargar los entrenamientos. 
+                Por favor, contacta al administrador.
+            </div>`;
     }
 
     let currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -64,6 +87,11 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
     async function loadWorkoutsForWeek() {
         if (!db) {
             console.error('Firebase not initialized');
+            document.getElementById('workoutList').innerHTML = `
+                <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+                    <span class="font-medium">Error:</span> No se pudo conectar con la base de datos. 
+                    Por favor, intenta recargar la página.
+                </div>`;
             return;
         }
 
