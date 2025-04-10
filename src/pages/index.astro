@@ -30,10 +30,31 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
 </Layout>
 
 <script>
-    import { db } from '../firebase';
-    import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+    import { initializeApp } from 'firebase/app';
+    import { getFirestore, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
     import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, eachDayOfInterval, addDays } from 'date-fns';
     import { es } from 'date-fns/locale';
+
+    const firebaseConfig = {
+        apiKey: import.meta.env.PUBLIC_FIREBASE_API_KEY,
+        authDomain: import.meta.env.PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.PUBLIC_FIREBASE_APP_ID,
+        measurementId: import.meta.env.PUBLIC_FIREBASE_MEASUREMENT_ID
+    };
+
+    // Initialize Firebase
+    let app;
+    let db;
+
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+    } catch (error) {
+        console.error('Error initializing Firebase:', error);
+    }
 
     let currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
     let isScrolling = false;
@@ -41,29 +62,41 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
     let selectedDate = new Date();
 
     async function loadWorkoutsForWeek() {
+        if (!db) {
+            console.error('Firebase not initialized');
+            return;
+        }
+
         const startDate = currentWeekStart;
         const endDate = addDays(currentWeekStart, 4);
         
-        const workoutsQuery = query(
-            collection(db, "workouts"),
-            where("date", ">=", format(startDate, 'yyyy-MM-dd')),
-            where("date", "<=", format(endDate, 'yyyy-MM-dd')),
-            orderBy("date", "asc"),
-            orderBy("id", "asc")
-        );
+        try {
+            const workoutsQuery = query(
+                collection(db, "workouts"),
+                where("date", ">=", format(startDate, 'yyyy-MM-dd')),
+                where("date", "<=", format(endDate, 'yyyy-MM-dd')),
+                orderBy("date", "asc"),
+                orderBy("id", "asc")
+            );
 
-        const querySnapshot = await getDocs(workoutsQuery);
-        const workouts = [];
+            const querySnapshot = await getDocs(workoutsQuery);
+            const workouts = [];
 
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            workouts.push({
-                ...data,
-                date: parseISO(data.date)
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                workouts.push({
+                    id: doc.id,
+                    ...data,
+                    date: parseISO(data.date)
+                });
             });
-        });
 
-        displayWorkouts(workouts, selectedDate);
+            displayWorkouts(workouts, selectedDate);
+        } catch (error) {
+            console.error('Error loading workouts:', error);
+            const workoutList = document.getElementById('workoutList');
+            workoutList.innerHTML = '<p class="text-red-500">Error loading workouts. Please try again later.</p>';
+        }
     }
 
     function selectDay(day) {
@@ -135,7 +168,8 @@ const days = eachDayOfInterval({ start: startDate, end: endDate });
         weekGrid.innerHTML = '';
         days.forEach(day => {
             const dayEl = document.createElement('div');
-            dayEl.className = 'flex flex-col items-center p-2 min-w-[60px] justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors';
+            const isSelected = isSameDay(day, selectedDate);
+            dayEl.className = `flex flex-col items-center p-2 min-w-[60px] justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${isSelected ? 'bg-gray-100 dark:bg-gray-700' : ''}`;
             dayEl.dataset.date = format(day, 'yyyy-MM-dd');
             dayEl.innerHTML = `
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">${format(day, 'EEE', { locale: es })}</span>
