@@ -1,174 +1,215 @@
 ---
 import { db } from '../../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
-import Layout from '../../layouts/Layout.astro';
 
-// Logs iniciales
-console.log('1. Página iniciando...');
-console.log('2. Firebase DB:', db);
-
-let workout = null;
-let error = null;
 const id = Astro.url.pathname.split('/').pop();
-console.log('3. ID recibido:', id);
+console.log('ID del workout:', id);
 
-async function loadWorkout() {
-    try {
-        console.log('4. Intentando obtener el documento...');
-        const docRef = doc(db, "workouts", id);
-        const docSnap = await getDoc(docRef);
-        
-        console.log('5. Documento existe?:', docSnap.exists());
-        
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            console.log('6. Datos raw:', data);
-            
-            workout = {
-                id: docSnap.id,
-                ...data,
-                date: parseISO(data.date)
-            };
-            console.log('7. Workout procesado:', workout);
-        } else {
-            error = 'No se encontró el documento';
-            console.log('8. Error:', error);
-        }
-    } catch (e) {
-        error = e.message;
-        console.error('9. Error capturado:', e);
-    }
+if (!id) {
+    console.error('No se proporcionó ID');
+    return Astro.redirect('/edit');
 }
 
-await loadWorkout();
+let workoutData = null;
+let isLoading = true;
+let error = null;
+
+try {
+    // Verificar la conexión con Firestore
+    console.log('Verificando conexión con Firestore...');
+    const workoutsCollection = collection(db, "workouts");
+    const snapshot = await getDocs(workoutsCollection);
+    console.log('Número total de documentos en la colección:', snapshot.size);
+    
+    // Listar todos los IDs disponibles para diagnóstico
+    const allIds = snapshot.docs.map(doc => doc.id);
+    console.log('IDs disponibles en la colección:', allIds);
+    
+    console.log('Intentando obtener el documento con ID:', id);
+    const docRef = doc(db, "workouts", id);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log('Datos del workout:', data);
+        workoutData = {
+            id: docSnap.id,
+            date: format(parseISO(data.date), 'yyyy-MM-dd'),
+            letter: data.letter,
+            title: data.title,
+            description: data.description?.replace(/<br>/g, '\n') || '',
+            notes: data.notes?.replace(/<br>/g, '\n') || ''
+        };
+        console.log('Datos procesados:', workoutData);
+    } else {
+        console.error('No se encontró el workout con ID:', id);
+        console.error('Documento no existe en la colección workouts');
+        console.error('IDs disponibles:', allIds);
+        error = 'No se encontró el entrenamiento';
+    }
+} catch (error) {
+    console.error('Error al obtener el workout:', error);
+    console.error('Detalles del error:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+    });
+    error = 'Error al cargar el entrenamiento';
+} finally {
+    isLoading = false;
+}
 ---
 
-<Layout title="Editar Entrenamiento">
-    <div class="max-w-2xl mx-auto">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="generator" content={Astro.generator} />
+        <title>Editar Entrenamiento</title>
+    </head>
+    <body class="w-full h-full flex flex-col bg-[#242424] text-[#f9f9f9]">
+        <div class="w-full h-full my-8 p-6">
             <h1 class="text-3xl font-bold mb-6">Editar Entrenamiento</h1>
             
-            {error && (
-                <div class="bg-red-500 text-white p-4 rounded-md mb-4">
-                    Error: {error}
+            {isLoading ? (
+                <div class="text-center">
+                    <p class="text-xl text-gray-400 mb-4">Cargando entrenamiento...</p>
                 </div>
-            )}
-
-            {!error && !workout && (
-                <div class="flex items-center justify-center p-4">
-                    <p>Cargando...</p>
+            ) : error ? (
+                <div class="text-center">
+                    <p class="text-xl text-gray-400 mb-4">{error}</p>
+                    <a href="/edit" class="text-sky-500 hover:text-sky-400">Volver a la lista</a>
                 </div>
-            )}
-
-            {workout && (
-                <form id="workoutForm" class="space-y-6">
+            ) : workoutData ? (
+                <form id="workoutForm" class="space-y-4" method="POST">
+                    <input type="hidden" id="workoutId" name="workoutId" value={workoutData.id} />
                     <div>
-                        <label for="workoutDate" class="block text-sm font-medium mb-1">Fecha</label>
+                        <label for="workoutDate" class="block text-sm font-medium">Fecha</label>
                         <input 
                             type="date" 
                             id="workoutDate" 
                             name="workoutDate" 
-                            value={format(workout.date, 'yyyy-MM-dd')} 
+                            value={workoutData.date} 
                             required 
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                            class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]" 
                         />
                     </div>
-                    
                     <div class="flex space-x-4">
                         <div class="flex-1">
-                            <label for="workoutLetter" class="block text-sm font-medium mb-1">Letra</label>
+                            <label for="workoutLetter" class="block text-sm font-medium">Letra</label>
                             <input 
                                 type="text" 
                                 id="workoutLetter" 
                                 name="workoutLetter" 
-                                value={workout.letter} 
+                                value={workoutData.letter} 
                                 maxlength="1" 
                                 required 
-                                class="w-16 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                                class="p-3 mt-1 block w-16 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]" 
                             />
                         </div>
                         <div class="flex-auto">
-                            <label for="workoutTitle" class="block text-sm font-medium mb-1">Título</label>
+                            <label for="workoutTitle" class="block text-sm font-medium">Título</label>
                             <input 
                                 type="text" 
                                 id="workoutTitle" 
                                 name="workoutTitle" 
-                                value={workout.title} 
+                                value={workoutData.title} 
                                 required 
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                                class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]" 
                             />
                         </div>
                     </div>
-                    
                     <div>
-                        <label for="workoutDescription" class="block text-sm font-medium mb-1">Workout</label>
+                        <label for="workoutDescription" class="block text-sm font-medium">Workout</label>
                         <textarea 
                             id="workoutDescription" 
                             name="workoutDescription" 
                             rows="7" 
                             required 
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-                        >{workout.description.replace(/<br>/g, '\n')}</textarea>
+                            class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]"
+                        >{workoutData.description}</textarea>
                     </div>
-                    
                     <div>
-                        <label for="workoutNotes" class="block text-sm font-medium mb-1">Notas</label>
+                        <label for="workoutNotes" class="block text-sm font-medium">Notas</label>
                         <textarea 
                             id="workoutNotes" 
                             name="workoutNotes" 
                             rows="4" 
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-                        >{workout.notes.replace(/<br>/g, '\n')}</textarea>
+                            class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]"
+                        >{workoutData.notes}</textarea>
                     </div>
-                    
                     <div class="flex justify-between">
                         <button 
                             type="submit" 
-                            class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md transition-colors"
+                            id="submitButton"
+                            name="submitButton"
+                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300"
                         >
                             Guardar cambios
                         </button>
                         <a 
-                            href="/admin" 
-                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            href="/edit" 
+                            id="cancelButton"
+                            name="cancelButton"
+                            class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300"
                         >
                             Cancelar
                         </a>
                     </div>
                 </form>
+            ) : (
+                <div class="text-center">
+                    <p class="text-xl text-gray-400 mb-4">Error al cargar el entrenamiento</p>
+                    <a href="/edit" class="text-sky-500 hover:text-sky-400">Volver a la lista</a>
+                </div>
             )}
         </div>
-    </div>
-</Layout>
 
-<script>
-    async function handleFormSubmit(event) {
-        event.preventDefault();
-        
-        const date = document.getElementById('workoutDate').value;
-        const letter = document.getElementById('workoutLetter').value;
-        const title = document.getElementById('workoutTitle').value;
-        const description = document.getElementById('workoutDescription').value;
-        const notes = document.getElementById('workoutNotes').value;
+        <script is:inline>
+            document.addEventListener('DOMContentLoaded', function() {
+                var form = document.getElementById('workoutForm');
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        var formData = {
+                            id: document.getElementById('workoutId').value,
+                            date: document.getElementById('workoutDate').value,
+                            letter: document.getElementById('workoutLetter').value,
+                            title: document.getElementById('workoutTitle').value,
+                            description: document.getElementById('workoutDescription').value,
+                            notes: document.getElementById('workoutNotes').value
+                        };
 
-        try {
-            await updateDoc(doc(db, "workouts", id), {
-                date: format(new Date(date), 'yyyy-MM-dd'),
-                letter: letter,
-                title: title,
-                description: description.replace(/\n/g, '<br>'),
-                notes: notes.replace(/\n/g, '<br>')
+                        console.log('Enviando datos:', formData);
+
+                        fetch('/api/updateWorkout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(formData)
+                        })
+                        .then(function(response) {
+                            console.log('Respuesta del servidor:', response);
+                            return response.json().then(data => {
+                                console.log('Datos de respuesta:', data);
+                                if (!response.ok) {
+                                    throw new Error(data.error || 'Error en la respuesta del servidor');
+                                }
+                                window.location.href = '/edit';
+                            });
+                        })
+                        .catch(function(error) {
+                            console.error('Error al guardar los cambios:', error);
+                            alert('Error al guardar los cambios: ' + error.message);
+                        });
+                    });
+                }
             });
-
-            window.location.href = '/admin';
-        } catch (error) {
-            console.error('Error al guardar:', error);
-            alert('Error al guardar los cambios');
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('workoutForm').addEventListener('submit', handleFormSubmit);
-    });
-</script>
+        </script>
+    </body>
+</html> 
