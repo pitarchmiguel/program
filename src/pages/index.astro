@@ -223,7 +223,7 @@ const selectedDayWorkouts = workouts
                                 </div>
                             </div>
                         ))}
-                    </div>
+                </div>
                 )}
             </div>
         </div>
@@ -360,7 +360,7 @@ const selectedDayWorkouts = workouts
                             }, 50);
                         }, 300);
                     }
-                } catch (error) {
+        } catch (error) {
                     console.error('Error al navegar:', error);
                 } finally {
                     isNavigating = false;
@@ -409,13 +409,13 @@ const selectedDayWorkouts = workouts
 
             // Función para mostrar/ocultar notas
             window.toggleNotes = function(id) {
-                const notesEl = document.getElementById(`notes-${id}`);
-                if (notesEl.classList.contains('hidden')) {
-                    notesEl.classList.remove('hidden');
-                } else {
-                    notesEl.classList.add('hidden');
-                }
-            }
+        const notesEl = document.getElementById(`notes-${id}`);
+        if (notesEl.classList.contains('hidden')) {
+            notesEl.classList.remove('hidden');
+        } else {
+            notesEl.classList.add('hidden');
+        }
+    }
 
             // Añadir manejador para el evento popstate
             window.addEventListener('popstate', () => {
@@ -425,7 +425,7 @@ const selectedDayWorkouts = workouts
 
             // Inicializar la visualización de la semana actual
             updateWeekDisplay(getCurrentDateFromUrl());
-        </script>
+</script>
     </body>
 </html>
 
