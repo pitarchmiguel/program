@@ -82,13 +82,17 @@ const selectedDayWorkouts = workouts
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="generator" content={Astro.generator} />
+        <meta name="theme-color" content="#1f2937" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)" />
         <title>La Program</title>
         <script>
             // Verificar preferencias del sistema y localStorage
             if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', '#1f2937');
             } else {
                 document.documentElement.classList.remove('dark');
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f9fafb');
             }
         </script>
         <style is:inline>
@@ -119,7 +123,7 @@ const selectedDayWorkouts = workouts
             }
         </style>
     </head>
-    <body class="w-full h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
+    <body class="w-full min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
         <div id="app" class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto page-transition">
             {/* Navegación de la semana */}
             <div class="relative overflow-hidden mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
@@ -299,9 +303,11 @@ const selectedDayWorkouts = workouts
                 if (document.documentElement.classList.contains('dark')) {
                     document.documentElement.classList.remove('dark');
                     localStorage.theme = 'light';
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f9fafb');
                 } else {
                     document.documentElement.classList.add('dark');
                     localStorage.theme = 'dark';
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#1f2937');
                 }
             });
 
@@ -448,6 +454,27 @@ const selectedDayWorkouts = workouts
                     bgCircle.classList.add('opacity-100');
                     borderCircle.classList.remove('border-gray-300', 'dark:border-gray-600');
                     borderCircle.classList.add('border-green-500');
+                    
+                    // Obtener la posición del botón
+                    const rect = button.getBoundingClientRect();
+                    const x = rect.left + rect.width / 2;
+                    const y = rect.top + rect.height / 2;
+                    
+                    // Lanzar confeti desde la posición del botón
+                    confetti({
+                        particleCount: 30,
+                        spread: 60,
+                        origin: { 
+                            x: x / window.innerWidth, 
+                            y: y / window.innerHeight 
+                        },
+                        colors: ['#22c55e', '#16a34a', '#15803d'], // Tonos de verde
+                        ticks: 100,
+                        gravity: 1.5,
+                        scalar: 0.8,
+                        shapes: ["circle"],
+                        disableForReducedMotion: true
+                    });
                 } else {
                     checkIcon.classList.remove('scale-100');
                     checkIcon.classList.add('scale-0');
@@ -503,6 +530,7 @@ const selectedDayWorkouts = workouts
             // Inicializar la visualización de la semana actual
             updateWeekDisplay(getCurrentDateFromUrl());
         </script>
+        <script src="https://cdn.jsdelivr.net/npm/tsparticles-confetti@2.12.0/tsparticles.confetti.bundle.min.js"></script>
     </body>
 </html>
 
