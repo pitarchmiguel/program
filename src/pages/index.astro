@@ -29,17 +29,30 @@ if (dateParam) {
 // Generar días de la semana
 const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
+// Añadir una semana extra antes y después para precarga
+const prevWeekStart = subWeeks(currentWeekStart, 1);
+const nextWeekStart = addWeeks(currentWeekStart, 1);
+const allWeekDays = [
+    ...Array.from({ length: 7 }, (_, i) => addDays(prevWeekStart, i)),
+    ...weekDays,
+    ...Array.from({ length: 7 }, (_, i) => addDays(nextWeekStart, i))
+];
+
+// Expandir el rango de fechas para la consulta
+const queryStartDate = format(prevWeekStart, 'yyyy-MM-dd');
+const queryEndDate = format(addDays(nextWeekStart, 6), 'yyyy-MM-dd');
+
 try {
     console.log('Obteniendo lista de workouts...');
     const workoutsCollection = collection(db, "workouts");
-    const q = query(workoutsCollection, orderBy("date", "desc"));
+    const q = query(
+        workoutsCollection,
+        orderBy("date", "desc")
+    );
     const querySnapshot = await getDocs(q);
-    
-    console.log('Número de documentos encontrados:', querySnapshot.size);
     
     workouts = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('Procesando documento:', doc.id, data);
         return {
             id: doc.id,
             date: parseISO(data.date),
@@ -49,8 +62,6 @@ try {
             notes: data.notes?.replace(/<br>/g, '\n') || ''
         };
     });
-    
-    console.log('Workouts procesados:', workouts);
 } catch (error) {
     console.error('Error al obtener los workouts:', error);
     error = 'Error al cargar los entrenamientos';
@@ -58,10 +69,10 @@ try {
     isLoading = false;
 }
 
-// Filtrar workouts por fecha seleccionada
-const selectedDayWorkouts = workouts.filter(workout => 
-    isSameDay(workout.date, selectedDate)
-);
+// Filtrar workouts por fecha seleccionada y ordenar por letra
+const selectedDayWorkouts = workouts
+    .filter(workout => isSameDay(workout.date, selectedDate))
+    .sort((a, b) => a.letter.localeCompare(b.letter));
 ---
 
 <!DOCTYPE html>
@@ -80,133 +91,191 @@ const selectedDayWorkouts = workouts.filter(workout =>
                 document.documentElement.classList.remove('dark');
             }
         </script>
+        <style is:inline>
+            .fade-enter {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            .fade-enter-active {
+                opacity: 1;
+                transform: translateY(0);
+                transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+            }
+            .fade-exit {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            .fade-exit-active {
+                opacity: 0;
+                transform: translateY(-10px);
+                transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+            }
+            .page-transition {
+                transition: opacity 300ms ease-in-out;
+            }
+            .page-transition.loading {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+        </style>
     </head>
     <body class="w-full h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
-        <div class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto">
-            <div class="flex items-center justify-between gap-4 mb-6 md:mb-8">
-                <h1 class="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-blue-600">La Program</h1>
-                <button 
-                    id="themeToggle"
-                    class="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300"
-                    aria-label="Cambiar tema"
-                >
-                    <svg class="w-5 h-5 md:w-6 md:h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    <svg class="w-5 h-5 md:w-6 md:h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                </button>
-            </div>
-
+        <div id="app" class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto page-transition">
             {/* Navegación de la semana */}
             <div class="relative overflow-hidden mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
-                <div class="flex justify-center items-center mb-4">
-                    <button id="prevWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
-                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center">
+                        <button id="prevWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
+                            <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <span id="currentWeek" class="mx-4 text-base md:text-lg font-semibold">
+                            {format(currentWeekStart, 'MMMM yyyy', { locale: es })}
+                        </span>
+                        <button id="nextWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
+                            <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <button 
+                        id="themeToggle"
+                        class="p-2 rounded-lg bg-white dark:bg-gray-700 shadow-sm hover:shadow-md transition-all duration-300"
+                        aria-label="Cambiar tema"
+                    >
+                        <svg class="w-5 h-5 md:w-6 md:h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
-                    </button>
-                    <span id="currentWeek" class="mx-4 text-base md:text-lg font-semibold">
-                        {format(currentWeekStart, 'MMMM yyyy', { locale: es })}
-                    </span>
-                    <button id="nextWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
-                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        <svg class="w-5 h-5 md:w-6 md:h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                         </svg>
                     </button>
                 </div>
                 <div class="grid grid-cols-7 gap-1 md:gap-2" id="weekNavigation">
                     {weekDays.map((day, index) => (
                         <div 
-                            class={`flex flex-col items-center justify-center py-2 text-center cursor-pointer transition-all duration-300 ${
-                                isSameDay(day, selectedDate) 
-                                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg scale-105 shadow-md' 
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
-                            }`}
-                            onclick={`window.location.href='/?date=${format(day, 'yyyy-MM-dd')}'`}
+                            class="flex flex-col items-center justify-center py-2 text-center cursor-pointer"
+                            data-date={format(day, 'yyyy-MM-dd')}
+                            onclick="handleDateClick(this)"
                         >
-                            <div class="text-xs md:text-sm font-medium">{format(day, 'EEE', { locale: es })}</div>
-                            <div class="text-base md:text-lg font-bold">{format(day, 'd')}</div>
+                            <div class="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">
+                                {format(day, 'EEE', { locale: es })}
+                            </div>
+                            <div class={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 ${
+                                isSameDay(day, selectedDate) 
+                                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white scale-110 shadow-md' 
+                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}>
+                                <span class="text-base md:text-lg font-bold">{format(day, 'd')}</span>
+                            </div>
                         </div>
                     ))}
                 </div>
             </div>
             
-            {isLoading ? (
-                <div class="text-center animate-fade-in">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"></div>
-                    <p class="text-lg md:text-xl text-gray-400 dark:text-gray-500 mt-4">Cargando entrenamientos...</p>
-                </div>
-            ) : error ? (
-                <div class="text-center animate-fade-in">
-                    <p class="text-lg md:text-xl text-red-500 dark:text-red-400 mb-4">{error}</p>
-                </div>
-            ) : selectedDayWorkouts.length === 0 ? (
-                <div class="text-center py-12 md:py-16 animate-fade-in">
-                    <div class="inline-block p-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white mb-4">
-                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
+            <div id="workoutsContainer">
+                {isLoading ? (
+                    <div class="text-center animate-fade-in">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"></div>
+                        <p class="text-lg md:text-xl text-gray-400 dark:text-gray-500 mt-4">Cargando entrenamientos...</p>
                     </div>
-                    <p class="text-2xl md:text-3xl font-bold text-gray-400 dark:text-gray-500">REST DAY 🤘</p>
-                </div>
-            ) : (
-                <div class="space-y-4">
-                    {selectedDayWorkouts.map(workout => (
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div class="flex items-center gap-4">
-                                    <span class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">{workout.letter}</span>
-                                    <div>
-                                        <h2 class="text-lg md:text-xl font-semibold">{workout.title}</h2>
-                                        <p class="text-sm md:text-base text-gray-500 dark:text-gray-400">{format(workout.date, 'dd/MM/yyyy')}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                <p class="text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">{workout.description}</p>
-                                {workout.notes && (
-                                    <div class="mt-4">
-                                        <button 
-                                            class="text-sm md:text-base text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 transition-colors duration-300"
-                                            onclick={`toggleNotes('${workout.id}')`}
-                                        >
-                                            Ver notas
-                                        </button>
-                                        <div id={`notes-${workout.id}`} class="hidden mt-2 text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">
-                                            {workout.notes}
+                ) : error ? (
+                    <div class="text-center animate-fade-in">
+                        <p class="text-lg md:text-xl text-red-500 dark:text-red-400 mb-4">{error}</p>
+                    </div>
+                ) : selectedDayWorkouts.length === 0 ? (
+                    <div class="text-center py-12 md:py-16 animate-fade-in">
+                        <div class="inline-block p-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white mb-4">
+                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <p class="text-2xl md:text-3xl font-bold text-gray-400 dark:text-gray-500">REST DAY 🤘</p>
+                    </div>
+                ) : (
+                    <div class="space-y-4">
+                        {selectedDayWorkouts.map(workout => (
+                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div class="flex items-center gap-4">
+                                        <span class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">{workout.letter}</span>
+                                        <div>
+                                            <h2 class="text-lg md:text-xl font-semibold">{workout.title}</h2>
                                         </div>
                                     </div>
-                                )}
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">{workout.description}</p>
+                                    {workout.notes && (
+                                        <div class="mt-4">
+                                            <button 
+                                                class="text-sm md:text-base text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 transition-colors duration-300"
+                                                onclick={`toggleNotes('${workout.id}')`}
+                                            >
+                                                Ver notas
+                                            </button>
+                                            <div id={`notes-${workout.id}`} class="hidden mt-2 text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                                                {workout.notes}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
 
         <script is:inline>
-            // Importar date-fns
-            const dateFns = {
-                addWeeks: (date, amount) => {
-                    const result = new Date(date);
-                    result.setDate(result.getDate() + amount * 7);
-                    return result;
-                },
-                subWeeks: (date, amount) => {
-                    const result = new Date(date);
-                    result.setDate(result.getDate() - amount * 7);
-                    return result;
-                },
-                format: (date, formatStr) => {
-                    const d = new Date(date);
-                    const day = d.getDate().toString().padStart(2, '0');
-                    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-                    const year = d.getFullYear();
-                    return `${year}-${month}-${day}`;
-                }
-            };
+            // Funciones de utilidad para fechas
+            function parseDate(dateStr) {
+                if (!dateStr) return new Date();
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                return date;
+            }
+
+            function getCurrentDateFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+                const dateStr = params.get('date');
+                return dateStr ? parseDate(dateStr) : new Date();
+            }
+
+            function formatDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function getStartOfWeek(date) {
+                const result = new Date(date);
+                const day = result.getDay();
+                const diff = result.getDate() - day + (day === 0 ? -6 : 1);
+                result.setDate(diff);
+                return result;
+            }
+
+            function addWeeks(date, weeks) {
+                const result = new Date(date);
+                result.setDate(result.getDate() + weeks * 7);
+                return result;
+            }
+
+            function subWeeks(date, weeks) {
+                const result = new Date(date);
+                result.setDate(result.getDate() - weeks * 7);
+                return result;
+            }
+
+            function updateWeekDisplay(date) {
+                const weekStart = getStartOfWeek(date);
+                const month = weekStart.toLocaleString('es', { month: 'long' });
+                const year = weekStart.getFullYear();
+                currentWeekEl.textContent = `${month} ${year}`;
+            }
 
             // Tema
             const themeToggle = document.getElementById('themeToggle');
@@ -226,79 +295,117 @@ const selectedDayWorkouts = workouts.filter(workout =>
             const nextWeekBtn = document.getElementById('nextWeek');
             const currentWeekEl = document.getElementById('currentWeek');
             
-            let isDown = false;
-            let startX;
-            let scrollLeft;
-            let touchStartX = 0;
-            let touchEndX = 0;
+            let isNavigating = false;
+            const app = document.getElementById('app');
+            const workoutsContainer = document.getElementById('workoutsContainer');
+
+            function getWeekDates(date) {
+                const monday = new Date(date);
+                monday.setDate(date.getDate() - date.getDay() + (date.getDay() === 0 ? -6 : 1));
+                
+                const dates = [];
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(monday);
+                    day.setDate(monday.getDate() + i);
+                    dates.push(day);
+                }
+                return dates;
+            }
+
+            async function navigateToDate(targetDate) {
+                if (isNavigating) return;
+                isNavigating = true;
+                app.classList.add('loading');
+
+                try {
+                    const formattedDate = formatDate(targetDate);
+                    const response = await fetch(`/?date=${formattedDate}`);
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newWorkouts = doc.getElementById('workoutsContainer');
+
+                    // Actualizar mes y año
+                    const month = targetDate.toLocaleString('es', { month: 'long' });
+                    const year = targetDate.getFullYear();
+                    currentWeekEl.textContent = `${month} ${year}`;
+
+                    // Actualizar selección visual
+                    document.querySelectorAll('#weekNavigation > div').forEach(day => {
+                        const numberCircle = day.querySelector('div:last-child');
+                        if (day.dataset.date === formattedDate) {
+                            numberCircle.classList.add('bg-gradient-to-r', 'from-sky-500', 'to-blue-600', 'text-white', 'scale-110', 'shadow-md');
+                            numberCircle.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+                        } else {
+                            numberCircle.classList.remove('bg-gradient-to-r', 'from-sky-500', 'to-blue-600', 'text-white', 'scale-110', 'shadow-md');
+                            numberCircle.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+                        }
+                    });
+
+                    // Actualizar contenido y URL
+                    if (newWorkouts) {
+                        workoutsContainer.classList.add('fade-exit');
+                        setTimeout(() => {
+                            workoutsContainer.innerHTML = newWorkouts.innerHTML;
+                            workoutsContainer.classList.remove('fade-exit');
+                            workoutsContainer.classList.add('fade-enter');
+                            setTimeout(() => {
+                                workoutsContainer.classList.remove('fade-enter');
+                                // Actualizar la URL y recargar si es necesario
+                                const currentUrl = new URL(window.location.href);
+                                const currentDate = currentUrl.searchParams.get('date');
+                                if (currentDate !== formattedDate) {
+                                    window.location.href = `/?date=${formattedDate}`;
+                                }
+                            }, 50);
+                        }, 300);
+                    }
+                } catch (error) {
+                    console.error('Error al navegar:', error);
+                } finally {
+                    isNavigating = false;
+                    app.classList.remove('loading');
+                }
+            }
 
             // Navegación por botones
             prevWeekBtn.addEventListener('click', () => {
-                const currentDate = new Date(window.location.search.split('=')[1] || new Date());
-                const newDate = dateFns.subWeeks(currentDate, 1);
-                window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
+                const currentDate = getCurrentDateFromUrl();
+                const newDate = new Date(currentDate);
+                newDate.setDate(currentDate.getDate() - 7);
+                navigateToDate(newDate);
             });
 
             nextWeekBtn.addEventListener('click', () => {
-                const currentDate = new Date(window.location.search.split('=')[1] || new Date());
-                const newDate = dateFns.addWeeks(currentDate, 1);
-                window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
+                const currentDate = getCurrentDateFromUrl();
+                const newDate = new Date(currentDate);
+                newDate.setDate(currentDate.getDate() + 7);
+                navigateToDate(newDate);
             });
 
-            // Eventos de ratón
-            weekNavigation.addEventListener('mousedown', (e) => {
-                isDown = true;
-                startX = e.pageX - weekNavigation.offsetLeft;
-                scrollLeft = weekNavigation.scrollLeft;
-                weekNavigation.style.cursor = 'grabbing';
-            });
-
-            weekNavigation.addEventListener('mouseleave', () => {
-                isDown = false;
-                weekNavigation.style.cursor = 'grab';
-            });
-
-            weekNavigation.addEventListener('mouseup', () => {
-                isDown = false;
-                weekNavigation.style.cursor = 'grab';
-            });
-
-            weekNavigation.addEventListener('mousemove', (e) => {
-                if (!isDown) return;
-                e.preventDefault();
-                const x = e.pageX - weekNavigation.offsetLeft;
-                const walk = (x - startX) * 2;
-                weekNavigation.scrollLeft = scrollLeft - walk;
-            });
+            // Click en día
+            async function handleDateClick(element) {
+                const date = parseDate(element.dataset.date);
+                navigateToDate(date);
+            }
 
             // Eventos táctiles
+            let touchStartX = 0;
             weekNavigation.addEventListener('touchstart', (e) => {
                 touchStartX = e.touches[0].clientX;
             });
 
             weekNavigation.addEventListener('touchend', (e) => {
-                touchEndX = e.changedTouches[0].clientX;
-                handleSwipe();
-            });
-
-            function handleSwipe() {
-                const swipeThreshold = 50;
+                const touchEndX = e.changedTouches[0].clientX;
                 const swipeDistance = touchEndX - touchStartX;
-
-                if (Math.abs(swipeDistance) < swipeThreshold) return;
-
-                const currentDate = new Date(window.location.search.split('=')[1] || new Date());
-
-                if (swipeDistance < 0) {
-                    // Swipe izquierda (siguiente semana)
-                    const newDate = dateFns.addWeeks(currentDate, 1);
-                    window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
-                } else {
-                    // Swipe derecha (semana anterior)
-                    const newDate = dateFns.subWeeks(currentDate, 1);
-                    window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
-                }
-            }
+                
+                if (Math.abs(swipeDistance) < 50) return;
+                
+                const currentDate = getCurrentDateFromUrl();
+                const newDate = new Date(currentDate);
+                newDate.setDate(currentDate.getDate() + (swipeDistance < 0 ? 7 : -7));
+                navigateToDate(newDate);
+            });
 
             // Función para mostrar/ocultar notas
             window.toggleNotes = function(id) {
@@ -309,6 +416,15 @@ const selectedDayWorkouts = workouts.filter(workout =>
                     notesEl.classList.add('hidden');
                 }
             }
+
+            // Añadir manejador para el evento popstate
+            window.addEventListener('popstate', () => {
+                const currentDate = getCurrentDateFromUrl();
+                navigateToDate(currentDate);
+            });
+
+            // Inicializar la visualización de la semana actual
+            updateWeekDisplay(getCurrentDateFromUrl());
         </script>
     </body>
 </html>
