@@ -197,12 +197,26 @@ const selectedDayWorkouts = workouts
                     <div class="space-y-4">
                         {selectedDayWorkouts.map(workout => (
                             <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
-                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div class="flex items-center gap-4">
-                                        <span class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">{workout.letter}</span>
-                                        <div>
-                                            <h2 class="text-lg md:text-xl font-semibold">{workout.title}</h2>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex flex-col gap-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">{workout.letter}</span>
+                                            <button 
+                                                class="w-6 h-6 flex items-center justify-center cursor-pointer relative"
+                                                data-workout-id={workout.id}
+                                                onclick="toggleWorkoutCompletion(this)"
+                                            >
+                                                <div class="absolute inset-0 rounded-full border-2 border-gray-300 dark:border-gray-600 peer-checked:border-green-500 transition-all duration-300"></div>
+                                                <div class="absolute inset-0 bg-green-100/50 dark:bg-green-900/20 rounded-full opacity-0 transition-all duration-300"></div>
+                                                <svg 
+                                                    class="w-4 h-4 text-green-500 scale-0 transition-transform duration-300 z-10" 
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path fill="currentColor" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                                                </svg>
+                                            </button>
                                         </div>
+                                        <h2 class="text-lg md:text-xl font-semibold">{workout.title}</h2>
                                     </div>
                                 </div>
                                 <div class="mt-4">
@@ -223,7 +237,7 @@ const selectedDayWorkouts = workouts
                                 </div>
                             </div>
                         ))}
-                </div>
+                    </div>
                 )}
             </div>
         </div>
@@ -360,7 +374,7 @@ const selectedDayWorkouts = workouts
                             }, 50);
                         }, 300);
                     }
-        } catch (error) {
+                } catch (error) {
                     console.error('Error al navegar:', error);
                 } finally {
                     isNavigating = false;
@@ -409,13 +423,74 @@ const selectedDayWorkouts = workouts
 
             // Función para mostrar/ocultar notas
             window.toggleNotes = function(id) {
-        const notesEl = document.getElementById(`notes-${id}`);
-        if (notesEl.classList.contains('hidden')) {
-            notesEl.classList.remove('hidden');
-        } else {
-            notesEl.classList.add('hidden');
-        }
-    }
+                const notesEl = document.getElementById(`notes-${id}`);
+                if (notesEl.classList.contains('hidden')) {
+                    notesEl.classList.remove('hidden');
+                } else {
+                    notesEl.classList.add('hidden');
+                }
+            }
+
+            // Función para manejar la completitud de los workouts
+            window.toggleWorkoutCompletion = function(button) {
+                const workoutId = button.dataset.workoutId;
+                const checkIcon = button.querySelector('svg');
+                const bgCircle = button.querySelector('div:nth-child(2)');
+                const borderCircle = button.querySelector('div:first-child');
+                const isCompleted = checkIcon.classList.contains('scale-100');
+                
+                if (!isCompleted) {
+                    checkIcon.classList.remove('scale-0');
+                    checkIcon.classList.add('scale-100');
+                    bgCircle.classList.remove('opacity-0');
+                    bgCircle.classList.add('opacity-100');
+                    borderCircle.classList.remove('border-gray-300', 'dark:border-gray-600');
+                    borderCircle.classList.add('border-green-500');
+                } else {
+                    checkIcon.classList.remove('scale-100');
+                    checkIcon.classList.add('scale-0');
+                    bgCircle.classList.remove('opacity-100');
+                    bgCircle.classList.add('opacity-0');
+                    borderCircle.classList.remove('border-green-500');
+                    borderCircle.classList.add('border-gray-300', 'dark:border-gray-600');
+                }
+                
+                // Obtener el estado actual de localStorage
+                let completedWorkouts = JSON.parse(localStorage.getItem('completedWorkouts') || '{}');
+                
+                // Actualizar el estado para este workout
+                completedWorkouts[workoutId] = !isCompleted;
+                
+                // Guardar en localStorage
+                localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+            };
+
+            // Función para inicializar el estado de los checkboxes
+            function initializeWorkoutCompletion() {
+                const completedWorkouts = JSON.parse(localStorage.getItem('completedWorkouts') || '{}');
+                
+                document.querySelectorAll('button[data-workout-id]').forEach(button => {
+                    const workoutId = button.dataset.workoutId;
+                    const checkIcon = button.querySelector('svg');
+                    const bgCircle = button.querySelector('div:nth-child(2)');
+                    const borderCircle = button.querySelector('div:first-child');
+                    const isCompleted = completedWorkouts[workoutId] || false;
+                    
+                    if (isCompleted) {
+                        checkIcon.classList.remove('scale-0');
+                        checkIcon.classList.add('scale-100');
+                        bgCircle.classList.remove('opacity-0');
+                        bgCircle.classList.add('opacity-100');
+                        borderCircle.classList.remove('border-gray-300', 'dark:border-gray-600');
+                        borderCircle.classList.add('border-green-500');
+                    }
+                });
+            }
+
+            // Inicializar el estado cuando se carga la página
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeWorkoutCompletion();
+            });
 
             // Añadir manejador para el evento popstate
             window.addEventListener('popstate', () => {
@@ -425,7 +500,7 @@ const selectedDayWorkouts = workouts
 
             // Inicializar la visualización de la semana actual
             updateWeekDisplay(getCurrentDateFromUrl());
-</script>
+        </script>
     </body>
 </html>
 

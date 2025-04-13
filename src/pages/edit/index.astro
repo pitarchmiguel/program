@@ -489,6 +489,51 @@ try {
                 tbody.innerHTML = '';
                 rows.forEach(row => tbody.appendChild(row));
             }
+
+            // Función para manejar la completitud de los workouts
+            window.toggleWorkoutCompletion = function(checkbox) {
+                const workoutId = checkbox.dataset.workoutId;
+                const isCompleted = checkbox.checked;
+                
+                // Obtener el estado actual de localStorage
+                let completedWorkouts = JSON.parse(localStorage.getItem('completedWorkouts') || '{}');
+                
+                // Actualizar el estado para este workout
+                completedWorkouts[workoutId] = isCompleted;
+                
+                // Guardar en localStorage
+                localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+                
+                // Actualizar la clase de la fila para mostrar el estado
+                const row = checkbox.closest('tr');
+                if (isCompleted) {
+                    row.classList.add('bg-green-50/50', 'dark:bg-green-900/20');
+                } else {
+                    row.classList.remove('bg-green-50/50', 'dark:bg-green-900/20');
+                }
+            };
+
+            // Función para inicializar el estado de los checkboxes
+            function initializeWorkoutCompletion() {
+                const completedWorkouts = JSON.parse(localStorage.getItem('completedWorkouts') || '{}');
+                
+                document.querySelectorAll('input[type="checkbox"][data-workout-id]').forEach(checkbox => {
+                    const workoutId = checkbox.dataset.workoutId;
+                    const isCompleted = completedWorkouts[workoutId] || false;
+                    
+                    checkbox.checked = isCompleted;
+                    
+                    const row = checkbox.closest('tr');
+                    if (isCompleted) {
+                        row.classList.add('bg-green-50/50', 'dark:bg-green-900/20');
+                    }
+                });
+            }
+
+            // Inicializar el estado cuando se carga la página
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeWorkoutCompletion();
+            });
         </script>
     </body>
 </html> 
