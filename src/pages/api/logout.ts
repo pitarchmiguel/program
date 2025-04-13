@@ -12,7 +12,8 @@ export const POST: APIRoute = async ({ cookies }) => {
 
         return new Response(JSON.stringify({
             success: true,
-            message: 'Sesión cerrada correctamente'
+            message: '¡Hasta pronto! Has cerrado sesión correctamente',
+            redirect: '/'
         }), {
             status: 200,
             headers: {

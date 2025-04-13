@@ -93,12 +93,12 @@ try {
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                                 </svg>
                             </button>
-                            <a 
-                                href="/api/logout" 
+                            <button 
+                                onclick="logout()"
                                 class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
                             >
                                 Cerrar Sesión
-                            </a>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -270,7 +270,7 @@ try {
             }
 
             // Cerrar sesión
-            async function logout() {
+            window.logout = async function() {
                 try {
                     const response = await fetch('/api/logout', {
                         method: 'POST',
@@ -279,16 +279,57 @@ try {
                         }
                     });
 
+                    const data = await response.json();
+
                     if (!response.ok) {
-                        throw new Error('Error al cerrar sesión');
+                        throw new Error(data.message || 'Error al cerrar sesión');
                     }
 
-                    window.location.href = '/login';
+                    // Esperar a que SweetAlert2 esté cargado
+                    if (typeof Swal === 'undefined') {
+                        await new Promise(resolve => {
+                            const checkSwal = setInterval(() => {
+                                if (typeof Swal !== 'undefined') {
+                                    clearInterval(checkSwal);
+                                    resolve();
+                                }
+                            }, 100);
+                        });
+                    }
+
+                    await Swal.fire({
+                        title: '¡Hasta pronto!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonColor: '#0ea5e9',
+                        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                        color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827',
+                        customClass: {
+                            confirmButton: 'swal2-confirm-custom'
+                        }
+                    });
+
+                    // Redirigir a la página principal
+                    window.location.href = data.redirect;
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('Error al cerrar sesión: ' + error.message);
+                    if (typeof Swal !== 'undefined') {
+                        await Swal.fire({
+                            title: 'Error',
+                            text: 'Error al cerrar sesión: ' + error.message,
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444',
+                            background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                            color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827',
+                            customClass: {
+                                confirmButton: 'swal2-error-custom'
+                            }
+                        });
+                    } else {
+                        alert('Error al cerrar sesión: ' + error.message);
+                    }
                 }
-            }
+            };
 
             // Función para eliminar workout
             window.deleteWorkout = async function(id) {
