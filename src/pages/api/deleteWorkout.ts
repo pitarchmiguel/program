@@ -1,59 +1,85 @@
 import type { APIRoute } from 'astro';
 import { db } from '../../firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, getDoc } from 'firebase/firestore';
 
 export const POST: APIRoute = async ({ request }) => {
     try {
         console.log('Recibida solicitud de eliminación');
-        const data = await request.json();
-        console.log('Datos recibidos:', data);
-
-        if (!data || !data.id) {
-            console.error('Datos inválidos recibidos:', data);
-            return new Response(JSON.stringify({ 
-                error: 'Datos inválidos: se requiere ID' 
+        
+        // Verificar que la solicitud sea POST
+        if (request.method !== 'POST') {
+            console.log('Método no permitido:', request.method);
+            return new Response(JSON.stringify({
+                success: false,
+                message: 'Método no permitido'
             }), {
-                status: 400,
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-store'
+                status: 405,
+                headers: {
+                    'Content-Type': 'application/json'
                 }
             });
         }
 
-        const docRef = doc(db, "workouts", data.id);
-        console.log('Intentando eliminar documento con ID:', data.id);
+        // Obtener el ID del entrenamiento a eliminar
+        const data = await request.json();
+        console.log('Datos recibidos:', data);
+        const { id } = data;
 
-        await deleteDoc(docRef);
-        console.log('Documento eliminado exitosamente');
+        if (!id) {
+            console.log('ID no proporcionado');
+            return new Response(JSON.stringify({
+                success: false,
+                message: 'ID de entrenamiento no proporcionado'
+            }), {
+                status: 400,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
 
-        return new Response(JSON.stringify({ 
-            success: true, 
-            message: 'Workout eliminado correctamente'
+        // Verificar que el documento existe
+        const workoutRef = doc(db, 'workouts', id);
+        console.log('Buscando documento con ID:', id);
+        const workoutDoc = await getDoc(workoutRef);
+
+        if (!workoutDoc.exists()) {
+            console.log('Documento no encontrado');
+            return new Response(JSON.stringify({
+                success: false,
+                message: 'El entrenamiento no existe'
+            }), {
+                status: 404,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
+
+        // Eliminar el documento
+        console.log('Eliminando documento...');
+        await deleteDoc(workoutRef);
+        console.log('Documento eliminado correctamente');
+
+        return new Response(JSON.stringify({
+            success: true,
+            message: 'Entrenamiento eliminado correctamente'
         }), {
             status: 200,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-store'
+            headers: {
+                'Content-Type': 'application/json'
             }
         });
     } catch (error) {
-        console.error('Error al eliminar el workout:', error);
-        console.error('Detalles del error:', {
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-        });
-
-        return new Response(JSON.stringify({ 
-            error: `Error al eliminar: ${error.message}`,
-            details: error.code || 'unknown_error'
+        console.error('Error al eliminar el entrenamiento:', error);
+        return new Response(JSON.stringify({
+            success: false,
+            message: 'Error al eliminar el entrenamiento'
         }), {
             status: 500,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-store'
+            headers: {
+                'Content-Type': 'application/json'
             }
         });
     }
-} 
+}; 

@@ -4,6 +4,12 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { format, parseISO, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+// Verificar autenticación
+const session = Astro.cookies.get('session');
+if (!session || session.value !== 'authenticated') {
+    return Astro.redirect('/login');
+}
+
 let selectedDate = new Date();
 let workouts = [];
 let isLoading = true;
@@ -59,6 +65,7 @@ const selectedDayWorkouts = workouts.filter(workout =>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="generator" content={Astro.generator} />
         <title>Editar Entrenamientos</title>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
         <script>
             // Verificar preferencias del sistema y localStorage
             if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -71,7 +78,15 @@ const selectedDayWorkouts = workouts.filter(workout =>
     <body class="w-full h-full flex flex-col bg-white dark:bg-[#242424] text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
         <div class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8">
-                <h1 class="text-2xl md:text-3xl font-bold">Editar Entrenamientos</h1>
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl md:text-3xl font-bold">Editar Entrenamientos</h1>
+                    <button 
+                        onclick="logout()"
+                        class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300"
+                    >
+                        Cerrar sesión
+                    </button>
+                </div>
                 <div class="flex items-center gap-2 md:gap-4">
                     <button 
                         id="themeToggle"
@@ -132,7 +147,8 @@ const selectedDayWorkouts = workouts.filter(workout =>
                                         Editar
                                     </a>
                                     <button 
-                                        onclick="deleteWorkout('${workout.id}')"
+                                        data-id={workout.id}
+                                        onclick="deleteWorkout(this.dataset.id)"
                                         class="bg-red-500 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-red-600 transition-colors duration-300 text-sm md:text-base"
                                     >
                                         Eliminar
@@ -170,14 +186,65 @@ const selectedDayWorkouts = workouts.filter(workout =>
                 window.location.href = '/edit?date=' + target.value;
             });
 
-            // Eliminar workout
-            async function deleteWorkout(id) {
-                if (!confirm('¿Estás seguro de que quieres eliminar este entrenamiento?')) {
-                    return;
+            // Cerrar sesión
+            async function logout() {
+                try {
+                    const response = await fetch('/api/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Error al cerrar sesión');
+                    }
+
+                    window.location.href = '/login';
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al cerrar sesión: ' + error.message);
+                }
+            }
+
+            // Función para eliminar workout
+            window.deleteWorkout = async function(id) {
+                // Esperar a que SweetAlert2 esté cargado
+                if (typeof Swal === 'undefined') {
+                    await new Promise(resolve => {
+                        const checkSwal = setInterval(() => {
+                            if (typeof Swal !== 'undefined') {
+                                clearInterval(checkSwal);
+                                resolve();
+                            }
+                        }, 100);
+                    });
                 }
 
+                const result = await Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "Esta acción no se puede deshacer",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    background: document.documentElement.classList.contains('dark') ? '#242424' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827'
+                });
+
+                if (result.isConfirmed) {
+                    await handleDelete(id);
+                }
+            };
+
+            // Función auxiliar para manejar la eliminación
+            async function handleDelete(id) {
                 try {
-                    const response = await fetch(`/api/deleteWorkout`, {
+                    console.log('Intentando eliminar entrenamiento con ID:', id);
+                    
+                    const response = await fetch('/api/deleteWorkout', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -185,15 +252,50 @@ const selectedDayWorkouts = workouts.filter(workout =>
                         body: JSON.stringify({ id })
                     });
 
+                    const data = await response.json();
+                    console.log('Respuesta del servidor:', data);
+
                     if (!response.ok) {
-                        throw new Error('Error al eliminar el entrenamiento');
+                        throw new Error(data.message || 'Error al eliminar el entrenamiento');
                     }
 
+                    // Esperar a que SweetAlert2 esté cargado
+                    if (typeof Swal === 'undefined') {
+                        await new Promise(resolve => {
+                            const checkSwal = setInterval(() => {
+                                if (typeof Swal !== 'undefined') {
+                                    clearInterval(checkSwal);
+                                    resolve();
+                                }
+                            }, 100);
+                        });
+                    }
+
+                    await Swal.fire({
+                        title: '¡Eliminado!',
+                        text: 'El entrenamiento ha sido eliminado correctamente',
+                        icon: 'success',
+                        confirmButtonColor: '#0ea5e9',
+                        background: document.documentElement.classList.contains('dark') ? '#242424' : '#ffffff',
+                        color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827'
+                    });
+                    
                     // Recargar la página para mostrar los cambios
                     window.location.reload();
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('Error al eliminar el entrenamiento: ' + error.message);
+                    if (typeof Swal !== 'undefined') {
+                        await Swal.fire({
+                            title: 'Error',
+                            text: 'Error al eliminar el entrenamiento: ' + error.message,
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444',
+                            background: document.documentElement.classList.contains('dark') ? '#242424' : '#ffffff',
+                            color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827'
+                        });
+                    } else {
+                        alert('Error al eliminar el entrenamiento: ' + error.message);
+                    }
                 }
             }
         </script>

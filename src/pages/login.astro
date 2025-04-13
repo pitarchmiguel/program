@@ -1,0 +1,117 @@
+---
+import { AUTH_CONFIG } from '../config/auth';
+
+// Verificar si ya hay una sesión activa y válida
+const session = Astro.cookies.get('session');
+if (session && session.value === 'authenticated') {
+    return Astro.redirect('/edit');
+}
+
+let error = null;
+
+// Manejar el envío del formulario
+if (Astro.request.method === 'POST') {
+    const formData = await Astro.request.formData();
+    const username = formData.get('username');
+    const password = formData.get('password');
+
+    if (username === AUTH_CONFIG.username && password === AUTH_CONFIG.password) {
+        // Crear cookie de sesión
+        Astro.cookies.set('session', 'authenticated', {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 24 // 24 horas
+        });
+
+        return Astro.redirect('/edit');
+    } else {
+        error = 'Usuario o contraseña incorrectos';
+    }
+}
+---
+
+<!DOCTYPE html>
+<html lang="es" class="dark">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="generator" content={Astro.generator} />
+        <title>Iniciar Sesión</title>
+        <script>
+            // Verificar preferencias del sistema y localStorage
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        </script>
+    </head>
+    <body class="w-full h-full flex flex-col bg-white dark:bg-[#242424] text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
+        <div class="w-full h-full flex items-center justify-center min-h-screen">
+            <div class="w-full max-w-md p-8 space-y-8 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-lg">
+                <div class="text-center">
+                    <h1 class="text-3xl font-bold">Iniciar Sesión</h1>
+                    <p class="mt-2 text-gray-500 dark:text-gray-400">Accede a tu panel de administración</p>
+                </div>
+                <form method="POST" class="mt-8 space-y-6">
+                    {error && (
+                        <div class="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 p-4 rounded-lg">
+                            {error}
+                        </div>
+                    )}
+                    <div class="space-y-4">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Usuario
+                            </label>
+                            <input
+                                id="username"
+                                name="username"
+                                type="text"
+                                required
+                                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
+                            />
+                        </div>
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Contraseña
+                            </label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                required
+                                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <button
+                            type="submit"
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors duration-300"
+                        >
+                            Iniciar Sesión
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script is:inline>
+            // Tema
+            const themeToggle = document.getElementById('themeToggle');
+            themeToggle.addEventListener('click', () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            });
+        </script>
+    </body>
+</html> 

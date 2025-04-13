@@ -1,243 +1,317 @@
 ---
 import { eachDayOfInterval, addDays, subWeeks, addWeeks, startOfWeek, endOfWeek, format } from 'date-fns';
 import Layout from '../layouts/Layout.astro';
+import { db } from '../firebase';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { format as dateFnsFormat, parseISO, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const today = new Date();
 const startDate = new Date();
 const endDate = addDays(startDate, 4); // Solo 5 días, de lunes a viernes
 
 const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+let selectedDate = new Date();
+let currentWeekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+let workouts = [];
+let isLoading = true;
+let error = null;
+
+// Obtener la fecha de la URL si existe
+const url = new URL(Astro.request.url);
+const dateParam = url.searchParams.get('date');
+if (dateParam) {
+    selectedDate = parseISO(dateParam);
+    currentWeekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+}
+
+// Generar días de la semana
+const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+
+try {
+    console.log('Obteniendo lista de workouts...');
+    const workoutsCollection = collection(db, "workouts");
+    const q = query(workoutsCollection, orderBy("date", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    console.log('Número de documentos encontrados:', querySnapshot.size);
+    
+    workouts = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Procesando documento:', doc.id, data);
+        return {
+            id: doc.id,
+            date: parseISO(data.date),
+            letter: data.letter,
+            title: data.title,
+            description: data.description?.replace(/<br>/g, '\n') || '',
+            notes: data.notes?.replace(/<br>/g, '\n') || ''
+        };
+    });
+    
+    console.log('Workouts procesados:', workouts);
+} catch (error) {
+    console.error('Error al obtener los workouts:', error);
+    error = 'Error al cargar los entrenamientos';
+} finally {
+    isLoading = false;
+}
+
+// Filtrar workouts por fecha seleccionada
+const selectedDayWorkouts = workouts.filter(workout => 
+    isSameDay(workout.date, selectedDate)
+);
 ---
 
-<Layout title="The Program">
-    <div class="space-y-8">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div class="w-full text-center mb-2">
-                <span id="currentMonth" class="text-xl font-bold"></span>
+<!DOCTYPE html>
+<html lang="es" class="dark">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="generator" content={Astro.generator} />
+        <title>La Program</title>
+        <script>
+            // Verificar preferencias del sistema y localStorage
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        </script>
+    </head>
+    <body class="w-full h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
+        <div class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto">
+            <div class="flex items-center justify-between gap-4 mb-6 md:mb-8">
+                <h1 class="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-blue-600">La Program</h1>
+                <button 
+                    id="themeToggle"
+                    class="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300"
+                    aria-label="Cambiar tema"
+                >
+                    <svg class="w-5 h-5 md:w-6 md:h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg class="w-5 h-5 md:w-6 md:h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
             </div>
-            
-            <div class="relative w-full">
-                <div id="weekGrid" class="flex justify-center w-full">
-                    <!-- Los días se generarán dinámicamente aquí -->
+
+            {/* Navegación de la semana */}
+            <div class="relative overflow-hidden mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
+                <div class="flex justify-center items-center mb-4">
+                    <button id="prevWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
+                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <span id="currentWeek" class="mx-4 text-base md:text-lg font-semibold">
+                        {format(currentWeekStart, 'MMMM yyyy', { locale: es })}
+                    </span>
+                    <button id="nextWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
+                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 md:gap-2" id="weekNavigation">
+                    {weekDays.map((day, index) => (
+                        <div 
+                            class={`flex flex-col items-center justify-center py-2 text-center cursor-pointer transition-all duration-300 ${
+                                isSameDay(day, selectedDate) 
+                                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg scale-105 shadow-md' 
+                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
+                            }`}
+                            onclick={`window.location.href='/?date=${format(day, 'yyyy-MM-dd')}'`}
+                        >
+                            <div class="text-xs md:text-sm font-medium">{format(day, 'EEE', { locale: es })}</div>
+                            <div class="text-base md:text-lg font-bold">{format(day, 'd')}</div>
+                        </div>
+                    ))}
                 </div>
             </div>
+            
+            {isLoading ? (
+                <div class="text-center animate-fade-in">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"></div>
+                    <p class="text-lg md:text-xl text-gray-400 dark:text-gray-500 mt-4">Cargando entrenamientos...</p>
+                </div>
+            ) : error ? (
+                <div class="text-center animate-fade-in">
+                    <p class="text-lg md:text-xl text-red-500 dark:text-red-400 mb-4">{error}</p>
+                </div>
+            ) : selectedDayWorkouts.length === 0 ? (
+                <div class="text-center py-12 md:py-16 animate-fade-in">
+                    <div class="inline-block p-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white mb-4">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <p class="text-2xl md:text-3xl font-bold text-gray-400 dark:text-gray-500">REST DAY 🤘</p>
+                </div>
+            ) : (
+                <div class="space-y-4">
+                    {selectedDayWorkouts.map(workout => (
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="flex items-center gap-4">
+                                    <span class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">{workout.letter}</span>
+                                    <div>
+                                        <h2 class="text-lg md:text-xl font-semibold">{workout.title}</h2>
+                                        <p class="text-sm md:text-base text-gray-500 dark:text-gray-400">{format(workout.date, 'dd/MM/yyyy')}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <p class="text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">{workout.description}</p>
+                                {workout.notes && (
+                                    <div class="mt-4">
+                                        <button 
+                                            class="text-sm md:text-base text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 transition-colors duration-300"
+                                            onclick={`toggleNotes('${workout.id}')`}
+                                        >
+                                            Ver notas
+                                        </button>
+                                        <div id={`notes-${workout.id}`} class="hidden mt-2 text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                                            {workout.notes}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
 
-        <div id="workoutList" class="space-y-6">
-            <!-- Los entrenamientos se cargarán aquí -->
-        </div>
-    </div>
-</Layout>
+        <script is:inline>
+            // Importar date-fns
+            const dateFns = {
+                addWeeks: (date, amount) => {
+                    const result = new Date(date);
+                    result.setDate(result.getDate() + amount * 7);
+                    return result;
+                },
+                subWeeks: (date, amount) => {
+                    const result = new Date(date);
+                    result.setDate(result.getDate() - amount * 7);
+                    return result;
+                },
+                format: (date, formatStr) => {
+                    const d = new Date(date);
+                    const day = d.getDate().toString().padStart(2, '0');
+                    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                    const year = d.getFullYear();
+                    return `${year}-${month}-${day}`;
+                }
+            };
 
-<script>
-    import { initializeApp } from 'firebase/app';
-    import { getFirestore, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-    import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, eachDayOfInterval, addDays } from 'date-fns';
-    import { es } from 'date-fns/locale';
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyBZaIzYF5ozPxodnfxMQI_Azf2xnk8Hdrw",
-        authDomain: "crossfit-app-45689.firebaseapp.com",
-        projectId: "crossfit-app-45689",
-        storageBucket: "crossfit-app-45689.appspot.com",
-        messagingSenderId: "172968183910",
-        appId: "1:172968183910:web:1b48e17ba79266ea5dc5a7",
-        measurementId: "G-SC16FBWZ36"
-    };
-
-    // Initialize Firebase
-    let app;
-    let db;
-
-    try {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        console.log('Firebase initialized successfully');
-    } catch (error) {
-        console.error('Error initializing Firebase:', error);
-        document.getElementById('workoutList').innerHTML = `
-            <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
-                <span class="font-medium">Error:</span> No se pudieron cargar los entrenamientos. 
-                Por favor, contacta al administrador.
-            </div>`;
-    }
-
-    let currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    let isScrolling = false;
-    let scrollTimeout;
-    let selectedDate = new Date();
-
-    async function loadWorkoutsForWeek() {
-        if (!db) {
-            console.error('Firebase not initialized');
-            document.getElementById('workoutList').innerHTML = `
-                <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
-                    <span class="font-medium">Error:</span> No se pudo conectar con la base de datos. 
-                    Por favor, intenta recargar la página.
-                </div>`;
-            return;
-        }
-
-        const startDate = currentWeekStart;
-        const endDate = addDays(currentWeekStart, 4);
-        
-        try {
-            const workoutsQuery = query(
-                collection(db, "workouts"),
-                where("date", ">=", format(startDate, 'yyyy-MM-dd')),
-                where("date", "<=", format(endDate, 'yyyy-MM-dd')),
-                orderBy("date", "asc"),
-                orderBy("id", "asc")
-            );
-
-            const querySnapshot = await getDocs(workoutsQuery);
-            const workouts = [];
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                workouts.push({
-                    id: doc.id,
-                    ...data,
-                    date: parseISO(data.date)
-                });
+            // Tema
+            const themeToggle = document.getElementById('themeToggle');
+            themeToggle.addEventListener('click', () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
             });
 
-            displayWorkouts(workouts, selectedDate);
-        } catch (error) {
-            console.error('Error loading workouts:', error);
-            const workoutList = document.getElementById('workoutList');
-            workoutList.innerHTML = '<p class="text-red-500">Error loading workouts. Please try again later.</p>';
-        }
-    }
-
-    function selectDay(day) {
-        selectedDate = day;
-        const workoutList = document.getElementById('workoutList');
-        workoutList.innerHTML = '';
-        
-        // Actualizar la clase selected-day
-        document.querySelectorAll('#weekGrid > div').forEach(el => {
-            el.classList.remove('bg-gray-100', 'dark:bg-gray-700');
-        });
-        const selectedDayEl = document.querySelector(`[data-date="${format(day, 'yyyy-MM-dd')}"]`);
-        if (selectedDayEl) {
-            selectedDayEl.classList.add('bg-gray-100', 'dark:bg-gray-700');
-        }
-
-        loadWorkoutsForWeek();
-    }
-
-    function displayWorkouts(workouts, selectedDate) {
-        const workoutList = document.getElementById('workoutList');
-        workoutList.innerHTML = '';
-
-        const filteredWorkouts = workouts.filter(workout => isSameDay(workout.date, selectedDate));
-
-        if (filteredWorkouts.length === 0) {
-            workoutList.innerHTML = '<p class="text-gray-500 font-bold">REST DAY 🤟🏼</p>';
-            return;
-        }
-
-        filteredWorkouts.forEach(workout => {
-            const workoutEl = document.createElement('div');
-            workoutEl.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow';
-            workoutEl.innerHTML = `
-                <div class="flex gap-2 items-center">
-                    ${workout.letter ? `<p class="bg-sky-600 text-white size-6 p-1 rounded-sm text-sm bold flex items-center justify-center font-bold">${workout.letter}</p>` : ''}
-                    <h5 class="font-bold text-gray-900 dark:text-white">${workout.title}</h5>
-                </div>
-                <p class="text-gray-700 dark:text-gray-300 mt-2 whitespace-pre-line">${workout.description}</p>
-                ${workout.notes ? `<button class="text-gray-500 dark:text-gray-400 italic text-sm mt-2" onclick="toggleNotes('${workout.id}')">Notas</button>` : ''}
-                <div id="notes-${workout.id}" class="hidden mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line">${workout.notes}</div>
-            `;
-            workoutList.appendChild(workoutEl);
-        });
-    }
-
-    (window as any).toggleNotes = function(id: string) {
-        const notesEl = document.getElementById(`notes-${id}`);
-        if (notesEl.classList.contains('hidden')) {
-            notesEl.classList.remove('hidden');
-        } else {
-            notesEl.classList.add('hidden');
-        }
-    }
-
-    function updateWeekDisplay() {
-        const weekGrid = document.getElementById('weekGrid');
-        const currentMonth = document.getElementById('currentMonth');
-        
-        // Actualizar el mes y año
-        currentMonth.textContent = format(currentWeekStart, 'MMMM yyyy', { locale: es });
-        
-        // Generar los 5 días de la semana (lunes a viernes)
-        const days = eachDayOfInterval({
-            start: currentWeekStart,
-            end: addDays(currentWeekStart, 4)
-        });
-
-        weekGrid.innerHTML = '';
-        days.forEach(day => {
-            const dayEl = document.createElement('div');
-            const isSelected = isSameDay(day, selectedDate);
-            dayEl.className = `flex flex-col items-center p-2 min-w-[60px] justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${isSelected ? 'bg-gray-100 dark:bg-gray-700' : ''}`;
-            dayEl.dataset.date = format(day, 'yyyy-MM-dd');
-            dayEl.innerHTML = `
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">${format(day, 'EEE', { locale: es })}</span>
-                <span class="text-sm font-bold text-gray-900 dark:text-white">${format(day, 'd')}</span>
-            `;
-            dayEl.addEventListener('click', () => selectDay(day));
-            weekGrid.appendChild(dayEl);
-        });
-
-        // Cargar los entrenamientos para la semana
-        loadWorkoutsForWeek();
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        updateWeekDisplay();
-        
-        const weekGrid = document.getElementById('weekGrid');
-        let touchStartX = 0;
-        let touchEndX = 0;
-        
-        weekGrid.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-        }, false);
-        
-        weekGrid.addEventListener('touchend', (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }, false);
-        
-        // Añadir soporte para mouse
-        weekGrid.addEventListener('mousedown', (e) => {
-            touchStartX = e.clientX;
-        }, false);
-        
-        weekGrid.addEventListener('mouseup', (e) => {
-            touchEndX = e.clientX;
-            handleSwipe();
-        }, false);
-        
-        function handleSwipe() {
-            const swipeThreshold = 50; // Mínimo de píxeles para considerar un swipe
-            const swipeDistance = touchEndX - touchStartX;
+            // Navegación de la semana
+            const weekNavigation = document.getElementById('weekNavigation');
+            const prevWeekBtn = document.getElementById('prevWeek');
+            const nextWeekBtn = document.getElementById('nextWeek');
+            const currentWeekEl = document.getElementById('currentWeek');
             
-            if (Math.abs(swipeDistance) < swipeThreshold) return;
-            
-            if (swipeDistance < 0) {
-                // Swipe izquierda (siguiente semana)
-                currentWeekStart = addWeeks(currentWeekStart, 1);
-            } else {
-                // Swipe derecha (semana anterior)
-                currentWeekStart = subWeeks(currentWeekStart, 1);
+            let isDown = false;
+            let startX;
+            let scrollLeft;
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            // Navegación por botones
+            prevWeekBtn.addEventListener('click', () => {
+                const currentDate = new Date(window.location.search.split('=')[1] || new Date());
+                const newDate = dateFns.subWeeks(currentDate, 1);
+                window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
+            });
+
+            nextWeekBtn.addEventListener('click', () => {
+                const currentDate = new Date(window.location.search.split('=')[1] || new Date());
+                const newDate = dateFns.addWeeks(currentDate, 1);
+                window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
+            });
+
+            // Eventos de ratón
+            weekNavigation.addEventListener('mousedown', (e) => {
+                isDown = true;
+                startX = e.pageX - weekNavigation.offsetLeft;
+                scrollLeft = weekNavigation.scrollLeft;
+                weekNavigation.style.cursor = 'grabbing';
+            });
+
+            weekNavigation.addEventListener('mouseleave', () => {
+                isDown = false;
+                weekNavigation.style.cursor = 'grab';
+            });
+
+            weekNavigation.addEventListener('mouseup', () => {
+                isDown = false;
+                weekNavigation.style.cursor = 'grab';
+            });
+
+            weekNavigation.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - weekNavigation.offsetLeft;
+                const walk = (x - startX) * 2;
+                weekNavigation.scrollLeft = scrollLeft - walk;
+            });
+
+            // Eventos táctiles
+            weekNavigation.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+            });
+
+            weekNavigation.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].clientX;
+                handleSwipe();
+            });
+
+            function handleSwipe() {
+                const swipeThreshold = 50;
+                const swipeDistance = touchEndX - touchStartX;
+
+                if (Math.abs(swipeDistance) < swipeThreshold) return;
+
+                const currentDate = new Date(window.location.search.split('=')[1] || new Date());
+
+                if (swipeDistance < 0) {
+                    // Swipe izquierda (siguiente semana)
+                    const newDate = dateFns.addWeeks(currentDate, 1);
+                    window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
+                } else {
+                    // Swipe derecha (semana anterior)
+                    const newDate = dateFns.subWeeks(currentDate, 1);
+                    window.location.href = `/?date=${dateFns.format(newDate, 'yyyy-MM-dd')}`;
+                }
             }
-            
-            updateWeekDisplay();
-        }
-    });
-</script>
+
+            // Función para mostrar/ocultar notas
+            window.toggleNotes = function(id) {
+                const notesEl = document.getElementById(`notes-${id}`);
+                if (notesEl.classList.contains('hidden')) {
+                    notesEl.classList.remove('hidden');
+                } else {
+                    notesEl.classList.add('hidden');
+                }
+            }
+        </script>
+    </body>
+</html>
 
 <style>
     .scrollbar-hide::-webkit-scrollbar {
