@@ -1,155 +1,266 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { format } from 'date-fns';
+
+// Verificar autenticación
+const session = Astro.cookies.get('session');
+if (!session || session.value !== 'authenticated') {
+	return Astro.redirect('/login');
+}
 ---
 
-<Layout title="Agregar Entrenamiento">
-	<div class="max-w-2xl mx-auto">
-		<div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-			<h1 class="text-3xl font-bold mb-6">Nuevo Entrenamiento</h1>
-			
-			<div id="notification" class="hidden mb-4 p-4 rounded-md"></div>
-			
-			<form id="workoutForm" class="space-y-6">
-				<div>
-					<label for="workoutDate" class="block text-sm font-medium mb-1">Fecha</label>
-					<input 
-						type="date" 
-						id="workoutDate" 
-						name="workoutDate" 
-						required 
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-					>
-				</div>
-				
-				<div class="flex space-x-4">
-					<div class="flex-1">
-						<label for="workoutLetter" class="block text-sm font-medium mb-1">Letra</label>
-						<input 
-							type="text" 
-							id="workoutLetter" 
-							name="workoutLetter" 
-							maxlength="1" 
-							required 
-							class="w-16 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-						>
+<!DOCTYPE html>
+<html lang="es" class="dark">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Añadir Entrenamiento</title>
+		<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+		<script>
+			// Verificar preferencias del sistema y localStorage
+			if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+		</script>
+	</head>
+	<body class="w-full h-full flex flex-col bg-white dark:bg-[#242424] text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
+		<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+			<nav class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+					<div class="flex h-16 items-center justify-between">
+						<div class="flex items-center gap-4">
+							<h1 class="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">La Program</h1>
+						</div>
+						<div class="flex items-center gap-4">
+							<button 
+								id="themeToggle"
+								class="p-2 rounded-xl bg-white/80 dark:bg-gray-700/80 shadow-sm hover:shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-105"
+								aria-label="Cambiar tema"
+							>
+								<svg class="w-5 h-5 hidden dark:block text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+								</svg>
+								<svg class="w-5 h-5 block dark:hidden text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+								</svg>
+							</button>
+							<a 
+								href="/api/logout" 
+								class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
+							>
+								Cerrar Sesión
+							</a>
+						</div>
 					</div>
-					<div class="flex-auto">
-						<label for="workoutTitle" class="block text-sm font-medium mb-1">Título</label>
-						<input 
-							type="text" 
-							id="workoutTitle" 
-							name="workoutTitle" 
-							required 
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-						>
+				</div>
+			</nav>
+
+			<main class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+				<div class="space-y-8">
+					<div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+						<div class="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+							<div>
+								<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Añadir Entrenamiento</h2>
+								<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Crea un nuevo entrenamiento para el programa</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+						<form id="workoutForm" class="space-y-6">
+							<div>
+								<label for="workoutDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha</label>
+								<input 
+									type="date" 
+									id="workoutDate" 
+									name="workoutDate" 
+									required 
+									class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+								>
+							</div>
+							
+							<div class="flex space-x-4">
+								<div class="flex-1">
+									<label for="workoutLetter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Letra</label>
+									<input 
+										type="text" 
+										id="workoutLetter" 
+										name="workoutLetter" 
+										maxlength="1" 
+										required 
+										class="w-16 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+									>
+								</div>
+								<div class="flex-auto">
+									<label for="workoutTitle" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
+									<input 
+										type="text" 
+										id="workoutTitle" 
+										name="workoutTitle" 
+										required 
+										class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+									>
+								</div>
+							</div>
+							
+							<div>
+								<label for="workoutDescription" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Workout</label>
+								<textarea 
+									id="workoutDescription" 
+									name="workoutDescription" 
+									rows="7" 
+									required 
+									class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+								></textarea>
+							</div>
+							
+							<div>
+								<label for="workoutNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
+								<textarea 
+									id="workoutNotes" 
+									name="workoutNotes" 
+									rows="4" 
+									class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+								></textarea>
+							</div>
+							
+							<div class="flex justify-between space-x-4">
+								<a 
+									href="/edit" 
+									class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
+								>
+									<svg class="mr-2 -ml-1 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+									</svg>
+									Volver al Panel
+								</a>
+								<button 
+									type="submit" 
+									class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
+								>
+									<svg class="mr-2 -ml-1 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+									</svg>
+									Añadir Entrenamiento
+								</button>
+							</div>
+						</form>
 					</div>
 				</div>
-				
-				<div>
-					<label for="workoutDescription" class="block text-sm font-medium mb-1">Workout</label>
-					<textarea 
-						id="workoutDescription" 
-						name="workoutDescription" 
-						rows="7" 
-						required 
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-					></textarea>
-				</div>
-				
-				<div>
-					<label for="workoutNotes" class="block text-sm font-medium mb-1">Notas</label>
-					<textarea 
-						id="workoutNotes" 
-						name="workoutNotes" 
-						rows="4" 
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
-					></textarea>
-				</div>
-				
-				<div class="flex justify-between">
-					<button 
-						type="submit" 
-						class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md transition-colors"
-					>
-						Añadir entrenamiento
-					</button>
-					<a 
-						href="/" 
-						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-					>
-						Volver
-					</a>
-				</div>
-			</form>
+			</main>
 		</div>
-	</div>
-</Layout>
 
-<script>
-	import { db } from '../firebase';
-	import { collection, addDoc } from 'firebase/firestore';
-	import { startOfWeek, format } from 'date-fns';
-
-	function showNotification(message, isError = false) {
-		const notification = document.getElementById('notification');
-		notification.textContent = message;
-		notification.classList.remove('hidden', 'notification-success', 'notification-error');
-		notification.classList.add(isError ? 'notification-error' : 'notification-success');
-		
-		setTimeout(() => {
-			notification.classList.add('hidden');
-		}, 3000);
-	}
-
-	function generateUniqueId() {
-		return Date.now().toString(36) + Math.random().toString(36).substr(2);
-	}
-
-	async function handleFormSubmit(event) {
-		event.preventDefault();
-		
-		const date = document.getElementById('workoutDate').value;
-		const letter = document.getElementById('workoutLetter').value;
-		const title = document.getElementById('workoutTitle').value;
-		const description = document.getElementById('workoutDescription').value;
-		const notes = document.getElementById('workoutNotes').value;
-		const uniqueId = generateUniqueId();
-
-		try {
-			await addDoc(collection(db, "workouts"), {
-				date: format(new Date(date), 'yyyy-MM-dd'),
-				letter: letter,
-				title: title,
-				description: description.replace(/\n/g, '<br>'),
-				notes: notes.replace(/\n/g, '<br>'),
-				id: uniqueId
+		<script>
+			// Tema
+			const themeToggle = document.getElementById('themeToggle');
+			themeToggle.addEventListener('click', () => {
+				if (document.documentElement.classList.contains('dark')) {
+					document.documentElement.classList.remove('dark');
+					localStorage.theme = 'light';
+				} else {
+					document.documentElement.classList.add('dark');
+					localStorage.theme = 'dark';
+				}
 			});
 
-			showNotification('Entrenamiento añadido correctamente');
-			document.getElementById('workoutForm').reset();
-		} catch (error) {
-			console.error('Error añadiendo entrenamiento:', error);
-			showNotification('Error al añadir el entrenamiento', true);
-		}
-	}
+			// Función para mostrar notificaciones con SweetAlert2
+			async function showNotification(title, text, icon = 'success') {
+				// Esperar a que SweetAlert2 esté cargado
+				if (typeof Swal === 'undefined') {
+					await new Promise(resolve => {
+						const checkSwal = setInterval(() => {
+							if (typeof Swal !== 'undefined') {
+								clearInterval(checkSwal);
+								resolve();
+							}
+						}, 100);
+					});
+				}
 
-	document.addEventListener('DOMContentLoaded', () => {
-		document.getElementById('workoutForm').addEventListener('submit', handleFormSubmit);
-	});
-</script>
+				await Swal.fire({
+					title: title,
+					text: text,
+					icon: icon,
+					confirmButtonColor: '#0ea5e9',
+					background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+					color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827',
+					customClass: {
+						confirmButton: 'swal2-confirm-custom'
+					}
+				});
+			}
 
-<style>
-	.notification-success {
-		background-color: #d4edda;
-		border-color: #c3e6cb;
-		color: #155724;
-	}
-	.notification-error {
-		background-color: #f8d7da;
-		border-color: #f5c6cb;
-		color: #721c24;
-	}
-	.hidden {
-		display: none;
-	}
-</style>
+			// Función para generar ID único
+			function generateUniqueId() {
+				return Date.now().toString(36) + Math.random().toString(36).substr(2);
+			}
+
+			// Manejar el envío del formulario
+			async function handleFormSubmit(event) {
+				event.preventDefault();
+				
+				const date = (document.getElementById('workoutDate') as HTMLInputElement).value;
+				const letter = (document.getElementById('workoutLetter') as HTMLInputElement).value;
+				const title = (document.getElementById('workoutTitle') as HTMLInputElement).value;
+				const description = (document.getElementById('workoutDescription') as HTMLTextAreaElement).value;
+				const notes = (document.getElementById('workoutNotes') as HTMLTextAreaElement).value;
+				const uniqueId = generateUniqueId();
+
+				try {
+					const response = await fetch('/api/createWorkout', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							date,
+							letter,
+							title,
+							description,
+							notes,
+							id: uniqueId
+						})
+					});
+
+					const data = await response.json();
+
+					if (!response.ok) {
+						throw new Error(data.message || 'Error al crear el entrenamiento');
+					}
+
+					await showNotification('¡Éxito!', 'El entrenamiento ha sido añadido correctamente');
+					(document.getElementById('workoutForm') as HTMLFormElement).reset();
+				} catch (error) {
+					console.error('Error añadiendo entrenamiento:', error);
+					await showNotification('Error', 'Error al añadir el entrenamiento: ' + error.message, 'error');
+				}
+			}
+
+			// Añadir estilos personalizados para SweetAlert2
+			const style = document.createElement('style');
+			style.textContent = `
+				.swal2-confirm-custom {
+					background: linear-gradient(to right, #0ea5e9, #2563eb) !important;
+					border: none !important;
+					box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2) !important;
+					transition: all 0.3s ease !important;
+				}
+				.swal2-confirm-custom:hover {
+					transform: translateY(-1px) !important;
+					box-shadow: 0 6px 8px -1px rgba(14, 165, 233, 0.3) !important;
+				}
+			`;
+			document.head.appendChild(style);
+
+			// Event listeners
+			document.addEventListener('DOMContentLoaded', () => {
+				document.getElementById('workoutForm').addEventListener('submit', handleFormSubmit);
+			});
+		</script>
+	</body>
+</html>

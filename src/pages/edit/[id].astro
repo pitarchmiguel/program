@@ -62,120 +62,192 @@ try {
 ---
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
     <head>
         <meta charset="utf-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <meta name="viewport" content="width=device-width" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="generator" content={Astro.generator} />
         <title>Editar Entrenamiento</title>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+        <script>
+            // Verificar preferencias del sistema y localStorage
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        </script>
     </head>
-    <body class="w-full h-full flex flex-col bg-[#242424] text-[#f9f9f9]">
-        <div class="w-full h-full my-8 p-6">
-            <h1 class="text-3xl font-bold mb-6">Editar Entrenamiento</h1>
-            
-            {isLoading ? (
-                <div class="text-center">
-                    <p class="text-xl text-gray-400 mb-4">Cargando entrenamiento...</p>
-                </div>
-            ) : error ? (
-                <div class="text-center">
-                    <p class="text-xl text-gray-400 mb-4">{error}</p>
-                    <a href="/edit" class="text-sky-500 hover:text-sky-400">Volver a la lista</a>
-                </div>
-            ) : workoutData ? (
-                <form id="workoutForm" class="space-y-4" method="POST">
-                    <input type="hidden" id="workoutId" name="workoutId" value={workoutData.id} />
-                    <div>
-                        <label for="workoutDate" class="block text-sm font-medium">Fecha</label>
-                        <input 
-                            type="date" 
-                            id="workoutDate" 
-                            name="workoutDate" 
-                            value={workoutData.date} 
-                            required 
-                            class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]" 
-                        />
-                    </div>
-                    <div class="flex space-x-4">
-                        <div class="flex-1">
-                            <label for="workoutLetter" class="block text-sm font-medium">Letra</label>
-                            <input 
-                                type="text" 
-                                id="workoutLetter" 
-                                name="workoutLetter" 
-                                value={workoutData.letter} 
-                                maxlength="1" 
-                                required 
-                                class="p-3 mt-1 block w-16 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]" 
-                            />
+    <body class="w-full h-full flex flex-col bg-white dark:bg-[#242424] text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
+        <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+            <nav class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+                <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div class="flex h-16 items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <a href="/edit" class="text-gray-600 dark:text-gray-300 hover:text-sky-500 dark:hover:text-sky-400 transition-colors duration-200">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
+                            </a>
+                            <h1 class="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">Editar Entrenamiento</h1>
                         </div>
-                        <div class="flex-auto">
-                            <label for="workoutTitle" class="block text-sm font-medium">Título</label>
-                            <input 
-                                type="text" 
-                                id="workoutTitle" 
-                                name="workoutTitle" 
-                                value={workoutData.title} 
-                                required 
-                                class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]" 
-                            />
+                        <div class="flex items-center gap-4">
+                            <button 
+                                id="themeToggle"
+                                class="p-2 rounded-xl bg-white/80 dark:bg-gray-700/80 shadow-sm hover:shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-105"
+                                aria-label="Cambiar tema"
+                            >
+                                <svg class="w-5 h-5 hidden dark:block text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <svg class="w-5 h-5 block dark:hidden text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                    <div>
-                        <label for="workoutDescription" class="block text-sm font-medium">Workout</label>
-                        <textarea 
-                            id="workoutDescription" 
-                            name="workoutDescription" 
-                            rows="7" 
-                            required 
-                            class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]"
-                        >{workoutData.description}</textarea>
-                    </div>
-                    <div>
-                        <label for="workoutNotes" class="block text-sm font-medium">Notas</label>
-                        <textarea 
-                            id="workoutNotes" 
-                            name="workoutNotes" 
-                            rows="4" 
-                            class="p-3 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-[#242424]"
-                        >{workoutData.notes}</textarea>
-                    </div>
-                    <div class="flex justify-between">
-                        <button 
-                            type="submit" 
-                            id="submitButton"
-                            name="submitButton"
-                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300"
-                        >
-                            Guardar cambios
-                        </button>
-                        <a 
-                            href="/edit" 
-                            id="cancelButton"
-                            name="cancelButton"
-                            class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300"
-                        >
-                            Cancelar
-                        </a>
-                    </div>
-                </form>
-            ) : (
-                <div class="text-center">
-                    <p class="text-xl text-gray-400 mb-4">Error al cargar el entrenamiento</p>
-                    <a href="/edit" class="text-sky-500 hover:text-sky-400">Volver a la lista</a>
                 </div>
-            )}
+            </nav>
+
+            <main class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                    {isLoading ? (
+                        <div class="text-center py-12">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"></div>
+                            <p class="mt-4 text-gray-600 dark:text-gray-400">Cargando entrenamiento...</p>
+                        </div>
+                    ) : error ? (
+                        <div class="text-center py-12">
+                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/50 mb-4">
+                                <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+                            <a href="/edit" class="inline-flex items-center text-sky-500 hover:text-sky-400 transition-colors duration-200">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
+                                Volver a la lista
+                            </a>
+                        </div>
+                    ) : workoutData ? (
+                        <form id="workoutForm" class="space-y-6" method="POST">
+                            <input type="hidden" id="workoutId" name="workoutId" value={workoutData.id} />
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="workoutDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha</label>
+                                    <input 
+                                        type="date" 
+                                        id="workoutDate" 
+                                        name="workoutDate" 
+                                        value={workoutData.date} 
+                                        required 
+                                        class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200" 
+                                    />
+                                </div>
+                                <div class="flex gap-4">
+                                    <div class="w-16">
+                                        <label for="workoutLetter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Letra</label>
+                                        <input 
+                                            type="text" 
+                                            id="workoutLetter" 
+                                            name="workoutLetter" 
+                                            value={workoutData.letter} 
+                                            maxlength="1" 
+                                            required 
+                                            class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200" 
+                                        />
+                                    </div>
+                                    <div class="flex-1">
+                                        <label for="workoutTitle" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
+                                        <input 
+                                            type="text" 
+                                            id="workoutTitle" 
+                                            name="workoutTitle" 
+                                            value={workoutData.title} 
+                                            required 
+                                            class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="workoutDescription" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Workout</label>
+                                <textarea 
+                                    id="workoutDescription" 
+                                    name="workoutDescription" 
+                                    rows="7" 
+                                    required 
+                                    class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+                                >{workoutData.description}</textarea>
+                            </div>
+
+                            <div>
+                                <label for="workoutNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
+                                <textarea 
+                                    id="workoutNotes" 
+                                    name="workoutNotes" 
+                                    rows="4" 
+                                    class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
+                                >{workoutData.notes}</textarea>
+                            </div>
+
+                            <div class="flex justify-between pt-4">
+                                <a 
+                                    href="/edit" 
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
+                                >
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    </svg>
+                                    Cancelar
+                                </a>
+                                <button 
+                                    type="submit" 
+                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
+                                >
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Guardar cambios
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                        <div class="text-center py-12">
+                            <p class="text-xl text-gray-400 mb-4">Error al cargar el entrenamiento</p>
+                            <a href="/edit" class="text-sky-500 hover:text-sky-400">Volver a la lista</a>
+                        </div>
+                    )}
+                </div>
+            </main>
         </div>
 
         <script is:inline>
+            // Tema
+            const themeToggle = document.getElementById('themeToggle');
+            themeToggle.addEventListener('click', () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            });
+
+            // Manejar el envío del formulario
             document.addEventListener('DOMContentLoaded', function() {
-                var form = document.getElementById('workoutForm');
+                const form = document.getElementById('workoutForm');
                 if (form) {
-                    form.addEventListener('submit', function(e) {
+                    form.addEventListener('submit', async function(e) {
                         e.preventDefault();
                         
-                        var formData = {
+                        const formData = {
                             id: document.getElementById('workoutId').value,
                             date: document.getElementById('workoutDate').value,
                             letter: document.getElementById('workoutLetter').value,
@@ -184,32 +256,89 @@ try {
                             notes: document.getElementById('workoutNotes').value
                         };
 
-                        console.log('Enviando datos:', formData);
-
-                        fetch('/api/updateWorkout', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(formData)
-                        })
-                        .then(function(response) {
-                            console.log('Respuesta del servidor:', response);
-                            return response.json().then(data => {
-                                console.log('Datos de respuesta:', data);
-                                if (!response.ok) {
-                                    throw new Error(data.error || 'Error en la respuesta del servidor');
-                                }
-                                window.location.href = '/edit';
+                        try {
+                            const response = await fetch('/api/updateWorkout', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(formData)
                             });
-                        })
-                        .catch(function(error) {
+
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                throw new Error(data.error || 'Error en la respuesta del servidor');
+                            }
+
+                            // Esperar a que SweetAlert2 esté cargado
+                            if (typeof Swal === 'undefined') {
+                                await new Promise(resolve => {
+                                    const checkSwal = setInterval(() => {
+                                        if (typeof Swal !== 'undefined') {
+                                            clearInterval(checkSwal);
+                                            resolve();
+                                        }
+                                    }, 100);
+                                });
+                            }
+
+                            await Swal.fire({
+                                title: '¡Éxito!',
+                                text: 'Los cambios se han guardado correctamente',
+                                icon: 'success',
+                                confirmButtonColor: '#0ea5e9',
+                                background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                                color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827',
+                                customClass: {
+                                    confirmButton: 'swal2-confirm-custom'
+                                }
+                            });
+
+                            window.location.href = '/edit';
+                        } catch (error) {
                             console.error('Error al guardar los cambios:', error);
-                            alert('Error al guardar los cambios: ' + error.message);
-                        });
+                            
+                            // Esperar a que SweetAlert2 esté cargado
+                            if (typeof Swal === 'undefined') {
+                                await new Promise(resolve => {
+                                    const checkSwal = setInterval(() => {
+                                        if (typeof Swal !== 'undefined') {
+                                            clearInterval(checkSwal);
+                                            resolve();
+                                        }
+                                    }, 100);
+                                });
+                            }
+
+                            await Swal.fire({
+                                title: 'Error',
+                                text: 'Error al guardar los cambios: ' + error.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0ea5e9',
+                                background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                                color: document.documentElement.classList.contains('dark') ? '#f9f9f9' : '#111827',
+                                customClass: {
+                                    confirmButton: 'swal2-confirm-custom'
+                                }
+                            });
+                        }
                     });
                 }
             });
         </script>
+
+        <style is:global>
+            .swal2-confirm-custom {
+                background: linear-gradient(to right, #0ea5e9, #2563eb) !important;
+                border: none !important;
+                box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2) !important;
+                transition: all 0.3s ease !important;
+            }
+            .swal2-confirm-custom:hover {
+                transform: translateY(-1px) !important;
+                box-shadow: 0 6px 8px -1px rgba(14, 165, 233, 0.3) !important;
+            }
+        </style>
     </body>
 </html> 
