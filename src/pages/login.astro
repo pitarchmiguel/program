@@ -1,33 +1,28 @@
 ---
-import { AUTH_CONFIG } from '../config/auth';
-
-// Verificar si ya hay una sesión activa y válida
-const session = Astro.cookies.get('session');
-if (session && session.value === 'authenticated') {
-    return Astro.redirect('/edit');
-}
+import { auth } from '../firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 let error = null;
 
 // Manejar el envío del formulario
 if (Astro.request.method === 'POST') {
     const formData = await Astro.request.formData();
-    const username = formData.get('username');
-    const password = formData.get('password');
+    const email = formData.get('email')?.toString() || '';
+    const password = formData.get('password')?.toString() || '';
 
-    if (username === AUTH_CONFIG.username && password === AUTH_CONFIG.password) {
-        // Crear cookie de sesión
-        Astro.cookies.set('session', 'authenticated', {
-            path: '/',
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 60 * 60 * 24 // 24 horas
-        });
-
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        // La autenticación se maneja automáticamente por Firebase
         return Astro.redirect('/edit');
-    } else {
-        error = 'Usuario o contraseña incorrectos';
+    } catch (error) {
+        console.error('Error de autenticación:', error);
+        if (error.code === 'auth/invalid-credential') {
+            error = 'Email o contraseña incorrectos';
+        } else if (error.code === 'auth/too-many-requests') {
+            error = 'Demasiados intentos fallidos. Por favor, inténtalo más tarde.';
+        } else {
+            error = 'Error al iniciar sesión. Por favor, inténtalo de nuevo.';
+        }
     }
 }
 ---
@@ -82,13 +77,13 @@ if (Astro.request.method === 'POST') {
                     <form method="POST" class="space-y-6">
                         <div class="space-y-4">
                             <div>
-                                <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Usuario
+                                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Email
                                 </label>
                                 <input
-                                    id="username"
-                                    name="username"
-                                    type="text"
+                                    id="email"
+                                    name="email"
+                                    type="email"
                                     required
                                     class="mt-1 block w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 transition-all duration-200"
                                 />

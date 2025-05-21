@@ -2,10 +2,12 @@
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
+import { requireAuth } from '../middleware/auth';
 
 // Verificar autenticación
-const session = Astro.cookies.get('session');
-if (!session || session.value !== 'authenticated') {
+try {
+	await requireAuth(Astro);
+} catch (error) {
 	return Astro.redirect('/login');
 }
 ---
