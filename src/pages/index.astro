@@ -36,15 +36,15 @@ if (dateParam) {
 }
 
 // Generar días de la semana
-const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+const weekDays = Array.from({ length: 5 }, (_, i) => addDays(currentWeekStart, i));
 
 // Añadir una semana extra antes y después para precarga
 const prevWeekStart = subWeeks(currentWeekStart, 1);
 const nextWeekStart = addWeeks(currentWeekStart, 1);
 const allWeekDays = [
-    ...Array.from({ length: 7 }, (_, i) => addDays(prevWeekStart, i)),
+    ...Array.from({ length: 5 }, (_, i) => addDays(prevWeekStart, i)),
     ...weekDays,
-    ...Array.from({ length: 7 }, (_, i) => addDays(nextWeekStart, i))
+    ...Array.from({ length: 5 }, (_, i) => addDays(nextWeekStart, i))
 ];
 
 // Expandir el rango de fechas para la consulta
@@ -59,27 +59,33 @@ try {
     const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
     
+    // Primero obtenemos todos los workouts de la semana
     const q = query(
         workoutsCollection,
         where("date", ">=", format(weekStart, 'yyyy-MM-dd')),
         where("date", "<=", format(weekEnd, 'yyyy-MM-dd')),
-        where("category", "==", ""),
         orderBy("date", "desc")
     );
     
     const querySnapshot = await getDocs(q);
     
-    workouts = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            date: parseISO(data.date),
-            letter: data.letter,
-            title: data.title,
-            description: data.description?.replace(/<br>/g, '\n') || '',
-            notes: data.notes?.replace(/<br>/g, '\n') || ''
-        };
-    });
+    // Luego filtramos los resultados para excluir resultados y prs
+    workouts = querySnapshot.docs
+        .filter(doc => {
+            const data = doc.data();
+            return data.category !== "resultados" && data.category !== "prs";
+        })
+        .map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                date: parseISO(data.date),
+                letter: data.letter,
+                title: data.title,
+                description: data.description?.replace(/<br>/g, '\n') || '',
+                notes: data.notes?.replace(/<br>/g, '\n') || ''
+            };
+        });
     
     console.log('Workouts obtenidos:', workouts.length);
 } catch (error) {
@@ -144,10 +150,10 @@ const selectedDayWorkouts = workouts
         </style>
     </head>
     <body class="w-full min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-[#f9f9f9] transition-colors duration-300">
-        <div id="app" class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto page-transition pb-20">
+        <div id="app" class="w-full h-full mt-0 md:mt-0 px-4 md:p-6 max-w-4xl mx-auto page-transition pb-20 mb-2 pt-4">
             {/* Navegación de la semana */}
-            <div class="relative overflow-hidden mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
-                <div class="flex justify-between items-center mb-4">
+            <div class="relative overflow-hidden mb-8 bg-white dark:bg-gray-800 shadow-lg -mx-4 md:-mx-6 -mt-4 md:-mt-6 rounded-b-xl">
+                <div class="flex justify-between items-center p-4">
                     <div class="flex items-center">
                         <button id="prevWeek" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300">
                             <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +182,7 @@ const selectedDayWorkouts = workouts
                         </svg>
                     </button>
                 </div>
-                <div class="grid grid-cols-7 gap-1 md:gap-2" id="weekNavigation">
+                <div class="grid grid-cols-5 gap-1 md:gap-2 px-0 pb-2" id="weekNavigation">
                     {weekDays.map((day, index) => (
                         <div 
                             class="flex flex-col items-center justify-center py-2 text-center cursor-pointer"
@@ -186,7 +192,7 @@ const selectedDayWorkouts = workouts
                             <div class="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">
                                 {format(day, 'EEE', { locale: es })}
                             </div>
-                            <div class={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 ${
+                            <div class={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 mt-2 ${
                                 isSameDay(day, selectedDate) 
                                     ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white scale-110 shadow-md' 
                                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -220,7 +226,7 @@ const selectedDayWorkouts = workouts
                 ) : (
                     <div class="space-y-4">
                         {selectedDayWorkouts.map(workout => (
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
+                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] p-4">
                                 <div class="flex flex-col gap-4">
                                     <div class="flex flex-col gap-4">
                                         <div class="flex items-center justify-between">
@@ -250,10 +256,13 @@ const selectedDayWorkouts = workouts
                                     {workout.notes && (
                                         <div class="mt-4">
                                             <button 
-                                                class="text-sm md:text-base text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 transition-colors duration-300"
+                                                class="text-sm md:text-base text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 transition-colors duration-300 flex items-center gap-2"
                                                 onclick={`toggleNotes('${workout.id}')`}
                                             >
-                                                Ver notas
+                                                <svg id={`icon-${workout.id}`} class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                                </svg>
+                                                <span>Ver notas</span>
                                             </button>
                                             <div id={`notes-${workout.id}`} class="hidden mt-2 text-sm md:text-base text-gray-700 dark:text-gray-300 whitespace-pre-line">
                                                 {workout.notes}
@@ -267,32 +276,6 @@ const selectedDayWorkouts = workouts
                 )}
             </div>
         </div>
-
-        <!-- Barra de navegación inferior -->
-        <nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
-            <div class="max-w-4xl mx-auto px-4">
-                <div class="flex justify-around items-center h-16">
-                    <a href="/" class="flex flex-col items-center justify-center flex-1 h-full text-sky-500 dark:text-sky-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        <span class="text-xs mt-1">WODs</span>
-                    </a>
-                    <div class="flex flex-col items-center justify-center flex-1 h-full text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <span class="text-xs mt-1">Resultados</span>
-                    </div>
-                    <div class="flex flex-col items-center justify-center flex-1 h-full text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                        <span class="text-xs mt-1">PRs</span>
-                    </div>
-                </div>
-            </div>
-        </nav>
 
         <script is:inline>
             // Funciones de utilidad para fechas
@@ -372,7 +355,7 @@ const selectedDayWorkouts = workouts
                 monday.setDate(date.getDate() - date.getDay() + (date.getDay() === 0 ? -6 : 1));
                 
                 const dates = [];
-                for (let i = 0; i < 7; i++) {
+                for (let i = 0; i < 5; i++) {
                     const day = new Date(monday);
                     day.setDate(monday.getDate() + i);
                     dates.push(day);
@@ -478,10 +461,13 @@ const selectedDayWorkouts = workouts
             // Función para mostrar/ocultar notas
             window.toggleNotes = function(id) {
                 const notesEl = document.getElementById(`notes-${id}`);
+                const iconEl = document.getElementById(`icon-${id}`);
                 if (notesEl.classList.contains('hidden')) {
                     notesEl.classList.remove('hidden');
+                    iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />';
                 } else {
                     notesEl.classList.add('hidden');
+                    iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />';
                 }
             }
 
