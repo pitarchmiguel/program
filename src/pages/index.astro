@@ -63,6 +63,7 @@ try {
         workoutsCollection,
         where("date", ">=", format(weekStart, 'yyyy-MM-dd')),
         where("date", "<=", format(weekEnd, 'yyyy-MM-dd')),
+        where("category", "==", ""),
         orderBy("date", "desc")
     );
     

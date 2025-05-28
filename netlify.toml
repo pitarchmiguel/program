@@ -12,5 +12,8 @@
   force = true
 
 [functions]
+  directory = "dist/functions"
   node_bundler = "esbuild"
-  external_node_modules = ["@astrojs/node"] 
+
+[[plugins]]
+  package = "@netlify/plugin-lighthouse" 

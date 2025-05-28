@@ -1,20 +1,50 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { db } from '../firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { format, parseISO } from 'date-fns';
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
+import '../styles/global.css';
 
+let workouts = [];
 let resultados = [];
 let isLoading = true;
 let error = null;
 
 try {
-    const resultadosCollection = collection(db, "resultados");
-    const q = query(resultadosCollection, orderBy("fecha", "desc"));
-    const querySnapshot = await getDocs(q);
+    // Obtener los WODs de la semana actual
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
     
-    resultados = querySnapshot.docs.map(doc => {
+    const workoutsCollection = collection(db, "workouts");
+    const q = query(
+        workoutsCollection,
+        where("date", ">=", format(weekStart, 'yyyy-MM-dd')),
+        where("date", "<=", format(weekEnd, 'yyyy-MM-dd')),
+        where("category", "==", "resultados"),
+        orderBy("date", "desc")
+    );
+    
+    const querySnapshot = await getDocs(q);
+    workouts = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            date: parseISO(data.date),
+            letter: data.letter,
+            category: data.category,
+            title: data.title,
+            description: data.description?.replace(/<br>/g, '\n') || '',
+            notes: data.notes?.replace(/<br>/g, '\n') || ''
+        };
+    });
+
+    // Obtener los resultados
+    const resultadosCollection = collection(db, "resultados");
+    const resultadosQuery = query(resultadosCollection, orderBy("fecha", "desc"));
+    const resultadosSnapshot = await getDocs(resultadosQuery);
+    
+    resultados = resultadosSnapshot.docs.map(doc => {
         const data = doc.data();
         return {
             id: doc.id,
@@ -29,11 +59,16 @@ try {
         };
     });
 } catch (err) {
-    console.error('Error al obtener los resultados:', err);
-    error = 'Error al cargar los resultados';
+    console.error('Error al obtener los datos:', err);
+    error = 'Error al cargar los datos';
 } finally {
     isLoading = false;
 }
+
+// Agrupar WODs por categoría (aunque ahora solo tendremos una categoría)
+const workoutsByCategory: Record<string, typeof workouts> = {
+    "WODs de la Semana": workouts
+};
 ---
 
 <Layout title="Resultados - La Program">
@@ -41,100 +76,222 @@ try {
         <div class="w-full h-full my-4 md:my-8 px-4 md:p-6 max-w-4xl mx-auto pb-20">
             <div class="mb-8">
                 <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 text-transparent bg-clip-text">
-                    Mis Resultados
+                    WODs de la Semana
                 </h1>
                 <p class="text-gray-600 dark:text-gray-400 mt-2">
-                    Registro de todos tus resultados en los WODs
+                    Registra tus resultados en los WODs de esta semana
                 </p>
             </div>
 
             {isLoading ? (
                 <div class="text-center animate-fade-in">
                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"></div>
-                    <p class="text-lg md:text-xl text-gray-400 dark:text-gray-500 mt-4">Cargando resultados...</p>
+                    <p class="text-lg md:text-xl text-gray-400 dark:text-gray-500 mt-4">Cargando datos...</p>
                 </div>
             ) : error ? (
                 <div class="text-center animate-fade-in">
                     <p class="text-lg md:text-xl text-red-500 dark:text-red-400 mb-4">{error}</p>
                 </div>
-            ) : resultados.length === 0 ? (
+            ) : Object.keys(workoutsByCategory).length === 0 ? (
                 <div class="text-center py-12 md:py-16 animate-fade-in">
                     <div class="inline-block p-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white mb-4">
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                     </div>
-                    <p class="text-2xl md:text-3xl font-bold text-gray-400 dark:text-gray-500">No hay resultados aún</p>
-                    <p class="text-gray-500 dark:text-gray-400 mt-2">¡Comienza a registrar tus resultados!</p>
+                    <p class="text-2xl md:text-3xl font-bold text-gray-400 dark:text-gray-500">No hay WODs esta semana</p>
+                    <p class="text-gray-500 dark:text-gray-400 mt-2">¡Vuelve más tarde!</p>
                 </div>
             ) : (
-                <div class="space-y-4">
-                    {resultados.map(resultado => (
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-                            <div class="flex flex-col gap-4">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h2 class="text-lg md:text-xl font-semibold">{resultado.wodTitulo}</h2>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">
-                                            {format(resultado.fecha, "d 'de' MMMM 'de' yyyy", { locale: es })}
-                                        </p>
+                <div class="space-y-8">
+                    {Object.entries(workoutsByCategory).map(([category, categoryWorkouts]) => (
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+                            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">WODs de la Semana</h2>
+                            </div>
+                            <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                                {categoryWorkouts.map(workout => (
+                                    <div class="p-6">
+                                        <div class="flex flex-col gap-4">
+                                            <div class="flex items-center justify-between">
+                                                <div>
+                                                    <h3 class="text-lg font-semibold">{workout.title}</h3>
+                                                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                                                        {format(workout.date, "d 'de' MMMM 'de' yyyy", { locale: es })}
+                                                    </p>
+                                                </div>
+                                                <button 
+                                                    onclick={`mostrarFormularioResultado('${workout.id}', '${workout.title}')`}
+                                                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg hover:from-sky-600 hover:to-blue-700 transition-colors duration-300"
+                                                >
+                                                    Añadir Resultado
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="prose dark:prose-invert max-w-none">
+                                                <p class="whitespace-pre-line">{workout.description}</p>
+                                                {workout.notes && (
+                                                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{workout.notes}</p>
+                                                )}
+                                            </div>
+
+                                            <!-- Resultados del WOD -->
+                                            <div class="mt-4 space-y-4">
+                                                {resultados
+                                                    .filter(r => r.wodId === workout.id)
+                                                    .map(resultado => (
+                                                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+                                                            <div class="flex flex-col gap-2">
+                                                                {resultado.tiempo && (
+                                                                    <div class="flex items-center gap-2">
+                                                                        <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
+                                                                        <span>Tiempo: {resultado.tiempo}</span>
+                                                                    </div>
+                                                                )}
+                                                                {resultado.rondas && (
+                                                                    <div class="flex items-center gap-2">
+                                                                        <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                        </svg>
+                                                                        <span>Rondas: {resultado.rondas}</span>
+                                                                    </div>
+                                                                )}
+                                                                {resultado.repeticiones && (
+                                                                    <div class="flex items-center gap-2">
+                                                                        <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                        </svg>
+                                                                        <span>Repeticiones: {resultado.repeticiones}</span>
+                                                                    </div>
+                                                                )}
+                                                                {resultado.peso && (
+                                                                    <div class="flex items-center gap-2">
+                                                                        <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                                                                        </svg>
+                                                                        <span>Peso: {resultado.peso}kg</span>
+                                                                    </div>
+                                                                )}
+                                                                {resultado.notas && (
+                                                                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                                                                        {resultado.notas}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <button 
-                                        class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300"
-                                        onclick={`toggleResultadoDetalles('${resultado.id}')`}
-                                    >
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                
-                                <div id={`detalles-${resultado.id}`} class="hidden space-y-2">
-                                    {resultado.tiempo && (
-                                        <div class="flex items-center gap-2">
-                                            <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <span>Tiempo: {resultado.tiempo}</span>
-                                        </div>
-                                    )}
-                                    {resultado.rondas && (
-                                        <div class="flex items-center gap-2">
-                                            <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                            <span>Rondas: {resultado.rondas}</span>
-                                        </div>
-                                    )}
-                                    {resultado.repeticiones && (
-                                        <div class="flex items-center gap-2">
-                                            <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                            <span>Repeticiones: {resultado.repeticiones}</span>
-                                        </div>
-                                    )}
-                                    {resultado.peso && (
-                                        <div class="flex items-center gap-2">
-                                            <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                                            </svg>
-                                            <span>Peso: {resultado.peso}kg</span>
-                                        </div>
-                                    )}
-                                    {resultado.notas && (
-                                        <div class="mt-4">
-                                            <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">
-                                                {resultado.notas}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+                                ))}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+        </div>
+
+        <!-- Modal para añadir resultado -->
+        <div id="modalResultado" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 transform transition-all">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold" id="modalTitulo">Añadir Resultado</h3>
+                        <button onclick="cerrarModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <form id="formResultado" onsubmit="guardarResultado(event)" class="space-y-4">
+                        <input type="hidden" id="wodId" name="wodId">
+                        <input type="hidden" id="wodTitulo" name="wodTitulo">
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Tiempo (opcional)
+                            </label>
+                            <input
+                                type="text"
+                                id="tiempo"
+                                name="tiempo"
+                                placeholder="ej: 12:34"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                            >
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Rondas (opcional)
+                            </label>
+                            <input
+                                type="number"
+                                id="rondas"
+                                name="rondas"
+                                min="0"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                            >
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Repeticiones (opcional)
+                            </label>
+                            <input
+                                type="number"
+                                id="repeticiones"
+                                name="repeticiones"
+                                min="0"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                            >
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Peso (kg) (opcional)
+                            </label>
+                            <input
+                                type="number"
+                                id="peso"
+                                name="peso"
+                                step="0.5"
+                                min="0"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                            >
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Notas (opcional)
+                            </label>
+                            <textarea
+                                id="notas"
+                                name="notas"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:bg-gray-700 dark:text-white"
+                            ></textarea>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 mt-6">
+                            <button
+                                type="button"
+                                onclick="cerrarModal()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-300"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg hover:from-sky-600 hover:to-blue-700 transition-colors duration-300"
+                            >
+                                Guardar Resultado
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- Barra de navegación inferior -->
@@ -166,18 +323,107 @@ try {
 </Layout>
 
 <script>
-    function toggleResultadoDetalles(id) {
-        const detalles = document.getElementById(`detalles-${id}`);
-        const button = detalles.previousElementSibling.querySelector('button svg');
+    let modalAbierto = false;
+
+    function mostrarFormularioResultado(wodId: string, wodTitulo: string) {
+        const modal = document.getElementById('modalResultado');
+        const wodIdInput = document.getElementById('wodId') as HTMLInputElement;
+        const wodTituloInput = document.getElementById('wodTitulo') as HTMLInputElement;
+        const modalTitulo = document.getElementById('modalTitulo');
         
-        if (detalles.classList.contains('hidden')) {
-            detalles.classList.remove('hidden');
-            button.classList.add('rotate-180');
-        } else {
-            detalles.classList.add('hidden');
-            button.classList.remove('rotate-180');
+        if (!modal || !wodIdInput || !wodTituloInput || !modalTitulo) {
+            console.error('No se encontraron algunos elementos del modal');
+            return;
+        }
+        
+        modalTitulo.textContent = `Añadir Resultado - ${wodTitulo}`;
+        wodIdInput.value = wodId;
+        wodTituloInput.value = wodTitulo;
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modalAbierto = true;
+        
+        // Prevenir scroll del body
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModal() {
+        const modal = document.getElementById('modalResultado');
+        if (!modal) return;
+        
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        modalAbierto = false;
+        
+        // Restaurar scroll del body
+        document.body.style.overflow = '';
+        
+        // Limpiar formulario
+        const form = document.getElementById('formResultado') as HTMLFormElement;
+        if (form) form.reset();
+    }
+
+    async function guardarResultado(event: Event) {
+        event.preventDefault();
+        
+        const form = event.target as HTMLFormElement;
+        const formData = new FormData(form);
+        
+        const resultadoData = {
+            wodId: formData.get('wodId') as string,
+            wodTitulo: formData.get('wodTitulo') as string,
+            tiempo: formData.get('tiempo') as string || null,
+            rondas: formData.get('rondas') ? parseInt(formData.get('rondas') as string) : null,
+            repeticiones: formData.get('repeticiones') ? parseInt(formData.get('repeticiones') as string) : null,
+            peso: formData.get('peso') ? parseFloat(formData.get('peso') as string) : null,
+            notas: formData.get('notas') as string || null,
+            fecha: new Date().toISOString()
+        };
+
+        try {
+            const response = await fetch('/api/createResult', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(resultadoData)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error al guardar el resultado');
+            }
+
+            // Cerrar modal y recargar página
+            cerrarModal();
+            window.location.reload();
+        } catch (error) {
+            console.error('Error al guardar el resultado:', error);
+            alert('Error al guardar el resultado. Por favor, inténtalo de nuevo.');
         }
     }
+
+    // Inicializar eventos cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', () => {
+        // Cerrar modal al hacer clic fuera
+        const modal = document.getElementById('modalResultado');
+        if (modal) {
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    cerrarModal();
+                }
+            });
+        }
+
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && modalAbierto) {
+                cerrarModal();
+            }
+        });
+    });
 </script>
 
 <style>

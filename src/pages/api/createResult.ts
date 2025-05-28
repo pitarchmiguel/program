@@ -5,10 +5,10 @@ import { format } from 'date-fns';
 export async function POST({ request }) {
     try {
         const data = await request.json();
-        const { date, letter, category, title, description, notes, id } = data;
+        const { wodId, wodTitulo, tiempo, rondas, repeticiones, peso, notas, fecha } = data;
 
         // Validar los datos
-        if (!date || !letter || !category || !title || !description) {
+        if (!wodId || !wodTitulo || !fecha) {
             return new Response(JSON.stringify({ 
                 success: false, 
                 message: 'Faltan campos requeridos' 
@@ -21,19 +21,20 @@ export async function POST({ request }) {
         }
 
         // Crear el documento en Firestore
-        const docRef = await addDoc(collection(db, "workouts"), {
-            date: format(new Date(date), 'yyyy-MM-dd'),
-            letter,
-            category,
-            title,
-            description: description.replace(/\n/g, '<br>'),
-            notes: notes ? notes.replace(/\n/g, '<br>') : '',
-            id
+        const docRef = await addDoc(collection(db, "resultados"), {
+            wodId,
+            wodTitulo,
+            tiempo: tiempo || null,
+            rondas: rondas || null,
+            repeticiones: repeticiones || null,
+            peso: peso || null,
+            notas: notas || null,
+            fecha: format(new Date(fecha), 'yyyy-MM-dd')
         });
 
         return new Response(JSON.stringify({ 
             success: true, 
-            message: 'Entrenamiento creado correctamente',
+            message: 'Resultado guardado correctamente',
             id: docRef.id
         }), {
             status: 200,
@@ -42,10 +43,10 @@ export async function POST({ request }) {
             }
         });
     } catch (error) {
-        console.error('Error al crear el entrenamiento:', error);
+        console.error('Error al guardar el resultado:', error);
         return new Response(JSON.stringify({ 
             success: false, 
-            message: 'Error al crear el entrenamiento: ' + error.message 
+            message: 'Error al guardar el resultado: ' + error.message 
         }), {
             status: 500,
             headers: {
